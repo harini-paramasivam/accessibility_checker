@@ -1,9 +1,13 @@
 {
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index.py"
+    }
+  ],
   "functions": {
-    "run.py": {
-      "includeFiles": "static/**"
-    },
-    "api/*.py": {
+    "api/index.py": {
       "includeFiles": "static/**"
     }
   }
