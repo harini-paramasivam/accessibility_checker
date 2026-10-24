@@ -25,6 +25,8 @@ from .store import NotFound, Store
 
 log = logging.getLogger("accessfix")
 STATIC = ROOT / "static"
+if not STATIC.is_dir() and (Path.cwd() / "static").is_dir():
+    STATIC = Path.cwd() / "static"
 CSP_APP = "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 CSP_LEGACY = ("default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; "
               "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net data: blob:; frame-ancestors 'none'")
@@ -62,7 +64,27 @@ def create_app(cfg: Config | None = None) -> Flask:
     cfg = cfg or Config()
     setup_logging(cfg)
     app = Flask(__name__, static_folder=None)
+    app.url_map.strict_slashes = False
     app.config["MAX_CONTENT_LENGTH"] = cfg.max_upload_bytes + 4096
+
+    class VercelPathFixMiddleware:
+        """Corrects PATH_INFO when Vercel rewrites requests to serverless entrypoints."""
+        def __init__(self, wsgi_app):
+            self.wsgi_app = wsgi_app
+
+        def __call__(self, environ, start_response):
+            matched = environ.get("HTTP_X_MATCHED_PATH") or environ.get("HTTP_X_VERCEL_MATCHED_PATH")
+            if matched:
+                environ["PATH_INFO"] = matched
+            else:
+                path = environ.get("PATH_INFO", "")
+                if path.startswith("/api/index.py"):
+                    environ["PATH_INFO"] = path[len("/api/index.py"):] or "/"
+                elif path.startswith("/api/index"):
+                    environ["PATH_INFO"] = path[len("/api/index"):] or "/"
+            return self.wsgi_app(environ, start_response)
+
+    app.wsgi_app = VercelPathFixMiddleware(app.wsgi_app)
     store = Store(cfg.data_dir)
     jobs = JobManager(cfg.max_concurrent_jobs)
     app.extensions["accessfix"] = {"cfg": cfg, "store": store, "jobs": jobs}

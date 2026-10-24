@@ -71,6 +71,24 @@ class VercelCompatibilityTests(unittest.TestCase):
             resp2 = client.get(f"/api/documents/{doc_id}/analysis")
             self.assertEqual(resp2.status_code, 200)
 
+    def test_vercel_rewritten_paths(self):
+        with patch.dict(os.environ, {"VERCEL": "1"}, clear=True):
+            cfg = Config()
+            app = create_app(cfg)
+            client = app.test_client()
+
+            # When Vercel rewrites to /api/index.py or /api/index, middleware restores "/"
+            resp1 = client.get("/api/index.py")
+            self.assertEqual(resp1.status_code, 200)
+
+            resp2 = client.get("/api/index")
+            self.assertEqual(resp2.status_code, 200)
+
+            # When X-Matched-Path header is sent by Vercel
+            resp3 = client.get("/api/index", headers={"X-Matched-Path": "/api/capabilities"})
+            self.assertEqual(resp3.status_code, 200)
+            self.assertIn("version", resp3.get_json())
+
     def test_entrypoint_imports(self):
         import run
         self.assertIsNotNone(run.app)
