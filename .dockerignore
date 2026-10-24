@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+7za
+7za920.zip
+tools
+accessfix-data
+data
+tests/.pytest_cache
+*.log

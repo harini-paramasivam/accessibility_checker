@@ -69,6 +69,9 @@ def _find_tessdata() -> str:
         except (OSError, PermissionError):
             pass
     candidates = [
+        Path("/usr/share/tesseract-ocr/5/tessdata"),
+        Path("/usr/share/tesseract-ocr/4.00/tessdata"),
+        Path("/usr/share/tessdata"),
         ROOT / "tools" / "tesseract" / "tessdata",
         Path(r"C:\Program Files\Tesseract-OCR\tessdata"),
         Path(r"C:\Program Files (x86)\Tesseract-OCR\tessdata"),
