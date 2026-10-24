@@ -73,6 +73,16 @@ def create_app(cfg: Config | None = None) -> Flask:
             self.wsgi_app = wsgi_app
 
         def __call__(self, environ, start_response):
+            query_string = environ.get("QUERY_STRING", "")
+            if "__path=" in query_string:
+                from urllib.parse import parse_qs, urlencode
+                parsed = parse_qs(query_string, keep_blank_values=True)
+                if "__path" in parsed:
+                    target_path = parsed.pop("__path")[0]
+                    environ["PATH_INFO"] = target_path or "/"
+                    environ["QUERY_STRING"] = urlencode(parsed, doseq=True)
+                    return self.wsgi_app(environ, start_response)
+
             orig_path = (
                 environ.get("HTTP_X_MATCHED_PATH")
                 or environ.get("HTTP_X_VERCEL_MATCHED_PATH")
@@ -93,6 +103,11 @@ def create_app(cfg: Config | None = None) -> Flask:
             return self.wsgi_app(environ, start_response)
 
     app.wsgi_app = VercelPathFixMiddleware(app.wsgi_app)
+
+    @app.get("/favicon.ico")
+    def favicon():
+        return "", 204
+
     store = Store(cfg.data_dir)
     jobs = JobManager(cfg.max_concurrent_jobs)
     app.extensions["accessfix"] = {"cfg": cfg, "store": store, "jobs": jobs}

@@ -89,6 +89,15 @@ class VercelCompatibilityTests(unittest.TestCase):
             self.assertEqual(resp3.status_code, 200)
             self.assertIn("version", resp3.get_json())
 
+            # When __path query parameter is passed by vercel.json rewrite
+            resp4 = client.get("/api/index?__path=/api/capabilities")
+            self.assertEqual(resp4.status_code, 200)
+            self.assertIn("version", resp4.get_json())
+
+            # Favicon returns 204
+            resp_fav = client.get("/favicon.ico")
+            self.assertEqual(resp_fav.status_code, 204)
+
     def test_entrypoint_imports(self):
         import run
         self.assertIsNotNone(run.app)
