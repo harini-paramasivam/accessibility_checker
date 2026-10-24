@@ -1,0 +1,4 @@
+-r requirements.txt
+reportlab>=4.0
+fonttools>=4.40
+playwright>=1.40   # optional: only for tests/test_ui.py

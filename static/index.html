@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AccessFix PDF Accessibility Checker | PDF/UA-1 &amp; WCAG 2.1 Conformance</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+
+<header class="top">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <path d="m9 12 2 2 4-4"/>
+      </svg>
+    </div>
+    <div>
+      <h1>AccessFix PDF</h1>
+      <p class="tagline">Accessibility Checker &amp; PDF/UA Remediation Engine</p>
+    </div>
+  </div>
+  <nav aria-label="System status">
+    <span id="engine-badge" class="chip status-chip" role="status">Checking OCR engine...</span>
+  </nav>
+</header>
+
+<div id="live" class="sr-only" role="status" aria-live="polite"></div>
+<div id="toast" class="toast" hidden role="alert"></div>
+
+<main id="main" tabindex="-1">
+  <!-- Upload View -->
+  <section id="view-upload" class="view-section" aria-labelledby="up-h">
+    <div class="hero">
+      <h2 id="up-h">Professional PDF Accessibility Audit</h2>
+      <p class="hero-sub">Validate document tag structures against <strong>ISO 32000-1</strong>, <strong>PDF/UA-1 (ISO 14289-1)</strong>, and <strong>WCAG 2.1</strong>. Inspect real PDF objects and apply 1-click verified remediations.</p>
+    </div>
+
+    <div id="drop" class="drop" tabindex="0" role="button" aria-describedby="drop-help" aria-label="Drop a PDF here or press Enter to browse">
+      <div class="drop-icon" aria-hidden="true">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <p class="drop-title">Select or drop a PDF document</p>
+      <p id="drop-help" class="drop-subtitle">Private and secure. Documents are processed locally on this server and never shared.</p>
+      <label class="btn primary btn-upload" for="file">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/>
+          <line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+        Browse PDF Files
+      </label>
+      <input id="file" type="file" accept="application/pdf,.pdf" class="sr-only">
+      <p id="limits" class="muted small limits-note"></p>
+    </div>
+
+    <div id="up-error" class="alert error" hidden role="alert"></div>
+
+    <div id="up-progress" class="upload-progress-card" hidden>
+      <div class="progress-header">
+        <span id="up-msg">Uploading document...</span>
+        <span class="spinner" aria-hidden="true"></span>
+      </div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Analysis progress">
+        <span id="up-bar"></span>
+      </div>
+    </div>
+
+    <div class="standards-grid" aria-label="Key accessibility features">
+      <div class="std-card">
+        <div class="std-icon" aria-hidden="true">📐</div>
+        <h3>Structure &amp; Tag Integrity</h3>
+        <p>Inspects <code>/StructTreeRoot</code>, <code>/ParentTree</code>, MCID associations, and RoleMap definitions directly from PDF objects.</p>
+      </div>
+      <div class="std-card">
+        <div class="std-icon" aria-hidden="true">♿</div>
+        <h3>PDF/UA &amp; WCAG 2.1</h3>
+        <p>Validates heading hierarchies, alternative text, table headers, document title, natural language, and tab focus order.</p>
+      </div>
+      <div class="std-card">
+        <div class="std-icon" aria-hidden="true">🔍</div>
+        <h3>Scanned OCR Text Layer</h3>
+        <p>Classifies native vs. scanned pages. Adds an invisible, searchable, and copyable text layer aligned with page bounds.</p>
+      </div>
+      <div class="std-card">
+        <div class="std-icon" aria-hidden="true">⚡</div>
+        <h3>One-Click Remediation</h3>
+        <p>Prune orphaned ParentTree references, set <code>MarkInfo.Marked</code>, fix metadata, and safely re-validate a clean output version.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Document Audit View -->
+  <section id="view-doc" class="view-section" hidden>
+    <div class="docbar">
+      <div class="docname">
+        <div class="docname-header">
+          <svg class="doc-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <h2 id="doc-name" tabindex="-1">Document</h2>
+        </div>
+        <p id="doc-meta" class="muted small"></p>
+      </div>
+      <div class="docactions">
+        <div class="ver-wrapper">
+          <label class="small" for="ver">Version:</label>
+          <select id="ver" aria-label="Document version"></select>
+        </div>
+        <a id="dl-pdf" class="btn primary" href="#" title="Download the accessible remediated PDF">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download PDF
+        </a>
+        <a id="dl-html" class="btn ghost" href="#" title="Download HTML audit summary">HTML Report</a>
+        <a id="dl-json" class="btn ghost" href="#" title="Export full machine-readable JSON data">JSON Report</a>
+        <button id="new-doc" class="btn ghost" type="button" title="Audit another PDF file">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+            <path d="M21 3v5h-5"/>
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+            <path d="M8 16H3v5"/>
+          </svg>
+          Check another file
+        </button>
+      </div>
+    </div>
+
+    <div id="state-banner" class="alert" hidden></div>
+    <div class="chips" id="chips" aria-label="Document status summary"></div>
+
+    <div class="layout">
+      <div class="panel-col">
+        <div role="tablist" aria-label="Accessibility Checker Sections" id="tabs">
+          <button role="tab" id="t-overview" aria-controls="p-overview" aria-selected="true">
+            <span class="tab-icon" aria-hidden="true">📊</span> Overview
+          </button>
+          <button role="tab" id="t-findings" aria-controls="p-findings" aria-selected="false" tabindex="-1">
+            <span class="tab-icon" aria-hidden="true">⚠️</span> Findings <span class="count" id="c-findings"></span>
+          </button>
+          <button role="tab" id="t-tree" aria-controls="p-tree" aria-selected="false" tabindex="-1">
+            <span class="tab-icon" aria-hidden="true">🌳</span> Tag Tree
+          </button>
+          <button role="tab" id="t-ocr" aria-controls="p-ocr" aria-selected="false" tabindex="-1">
+            <span class="tab-icon" aria-hidden="true">🔍</span> Scanned Pages &amp; OCR
+          </button>
+          <button role="tab" id="t-versions" aria-controls="p-versions" aria-selected="false" tabindex="-1">
+            <span class="tab-icon" aria-hidden="true">📜</span> Audit History &amp; Diff
+          </button>
+        </div>
+
+        <section id="p-overview" role="tabpanel" aria-labelledby="t-overview" tabindex="0"></section>
+        <section id="p-findings" role="tabpanel" aria-labelledby="t-findings" tabindex="0" hidden></section>
+        <section id="p-tree" role="tabpanel" aria-labelledby="t-tree" tabindex="0" hidden></section>
+        <section id="p-ocr" role="tabpanel" aria-labelledby="t-ocr" tabindex="0" hidden></section>
+        <section id="p-versions" role="tabpanel" aria-labelledby="t-versions" tabindex="0" hidden></section>
+      </div>
+
+      <!-- Page Preview & Text Layer -->
+      <aside class="preview" aria-label="Page preview and text layer inspector">
+        <div class="pv-header">
+          <span class="pv-title">Page Inspector</span>
+          <div class="pv-nav">
+            <button id="pv-prev" class="btn small ghost" type="button" aria-label="Previous page">&larr;</button>
+            <label class="small" for="pv-page">Page</label>
+            <input id="pv-page" type="number" min="1" value="1" aria-label="Current page number">
+            <span id="pv-total" class="small muted"></span>
+            <button id="pv-next" class="btn small ghost" type="button" aria-label="Next page">&rarr;</button>
+          </div>
+        </div>
+
+        <div class="pv-toolbar">
+          <div class="pv-zoom-group">
+            <button id="pv-zoom-out" class="btn small ghost" type="button" aria-label="Zoom out" title="Zoom out">&minus;</button>
+            <span id="pv-zoom-level" class="small mono zoom-label">100%</span>
+            <button id="pv-zoom-in" class="btn small ghost" type="button" aria-label="Zoom in" title="Zoom in">&plus;</button>
+            <button id="pv-zoom-reset" class="btn small ghost" type="button" title="Fit to width">Fit</button>
+          </div>
+          <div class="pv-actions-group">
+            <button id="pv-copy-page" class="btn small ghost" type="button" title="Copy all text on this page to clipboard">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Copy Text
+            </button>
+            <button id="pv-toggle-layer" class="btn small ghost" type="button" aria-pressed="false" title="Toggle visible boxes for OCR text layer">
+              Text Bounds
+            </button>
+          </div>
+        </div>
+
+        <div class="pv-viewport" id="pv-viewport">
+          <div class="pv-frame" id="pv-frame">
+            <img id="pv-img" alt="Rendered preview of the selected page" width="400" height="520">
+            <div id="pv-textlayer" class="pv-textlayer" role="region" aria-label="Selectable and copyable page text"></div>
+            <div id="pv-hl" class="hl" hidden></div>
+          </div>
+        </div>
+        <p id="pv-note" class="muted small pv-status-note" aria-live="polite"></p>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<footer class="foot small muted">
+  <div class="foot-content">
+    <span><strong>AccessFix PDF</strong> &bull; Conformance checking against ISO 32000-1, PDF/UA-1 (ISO 14289-1), and WCAG 2.1.</span>
+    <span class="foot-note">Deterministic engine &bull; No third-party data tracking &bull; Always verify with screen readers (NVDA/JAWS)</span>
+  </div>
+</footer>
+
+<script src="/static/app.js" type="module"></script>
+</body>
+</html>
