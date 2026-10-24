@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "run.py": {
+      "includeFiles": "static/**"
+    },
+    "api/*.py": {
+      "includeFiles": "static/**"
+    }
+  }
+}

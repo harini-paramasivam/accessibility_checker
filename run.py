@@ -12,7 +12,7 @@ from accessfix.app import create_app
 
 app = create_app()
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not os.environ.get("VERCEL"):
     host = os.environ.get("ACCESSFIX_HOST", "127.0.0.1")
     port = int(os.environ.get("ACCESSFIX_PORT", "5050"))
     print(f"AccessFix PDF running at http://{host}:{port}")
