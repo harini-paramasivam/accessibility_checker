@@ -3,3 +3,4 @@ pikepdf>=10.0
 pypdfium2>=5.0
 Pillow>=10.0
 numpy>=1.26
+gunicorn>=21.2
