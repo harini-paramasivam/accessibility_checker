@@ -16,7 +16,7 @@ from werkzeug.exceptions import HTTPException
 
 from . import __version__, ocr as ocrmod
 from .analyze import analyze
-from .config import Config, ROOT
+from .config import Config, ROOT, is_serverless
 from .jobs import JobManager
 from .pdfium_content import LOCK, extract_page_text_layout
 from .remediate import RemediationError, apply_actions
@@ -37,8 +37,6 @@ def api_error(status, code, message, **extra):
 
 
 def setup_logging(cfg):
-    cfg.data_dir.mkdir(parents=True, exist_ok=True)
-    (cfg.data_dir / "logs").mkdir(exist_ok=True)
     root = logging.getLogger("accessfix")
     if root.handlers:
         return
@@ -46,10 +44,18 @@ def setup_logging(cfg):
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     h1 = logging.StreamHandler()
     h1.setFormatter(fmt)
-    h2 = RotatingFileHandler(cfg.data_dir / "logs" / "accessfix.log", maxBytes=2_000_000, backupCount=3)
-    h2.setFormatter(fmt)
     root.addHandler(h1)
-    root.addHandler(h2)
+
+    # In serverless runtimes (Vercel, AWS Lambda), stdout is captured by platform logs.
+    # Rotating file handler is only attached when running on a writable persistent filesystem.
+    if not is_serverless():
+        try:
+            (cfg.data_dir / "logs").mkdir(parents=True, exist_ok=True)
+            h2 = RotatingFileHandler(cfg.data_dir / "logs" / "accessfix.log", maxBytes=2_000_000, backupCount=3)
+            h2.setFormatter(fmt)
+            root.addHandler(h2)
+        except (OSError, PermissionError):
+            pass
 
 
 def create_app(cfg: Config | None = None) -> Flask:
@@ -71,7 +77,7 @@ def create_app(cfg: Config | None = None) -> Flask:
             except Exception:
                 log.exception("cleanup failed")
 
-    if not app.config.get("TESTING"):
+    if not app.config.get("TESTING") and not is_serverless():
         threading.Thread(target=_cleaner, daemon=True, name="cleanup").start()
 
     # ------------------------------------------------------------------ headers / errors
@@ -193,7 +199,7 @@ def create_app(cfg: Config | None = None) -> Flask:
                 job.log("warn", res.get("message", ""))
             return {"version": "v0", "state": res["state"]}
 
-        job = jobs.submit("analyze", doc_id, work)
+        job = jobs.submit("analyze", doc_id, work, sync=is_serverless())
         r = jsonify({"document": doc_json(doc_id), "job": job.to_dict()})
         r.status_code = 201
         return r

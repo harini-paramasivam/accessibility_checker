@@ -19,6 +19,7 @@ dist/
 # AccessFix runtime data & uploads
 data/
 cache/
+accessfix-data/
 
 # Binary tools & installers
 tools/

@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """Start AccessFix PDF:  python run.py   (then open http://127.0.0.1:5050)"""
 import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from accessfix.app import create_app
 
 app = create_app()

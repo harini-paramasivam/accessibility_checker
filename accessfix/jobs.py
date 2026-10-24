@@ -57,7 +57,7 @@ class JobManager:
         self.sem = threading.Semaphore(max_concurrent)
         self._lock = threading.Lock()
 
-    def submit(self, kind, doc_id, fn):
+    def submit(self, kind, doc_id, fn, sync: bool = False):
         job = Job(kind, doc_id)
         with self._lock:
             self.jobs[job.id] = job
@@ -90,7 +90,10 @@ class JobManager:
                     job.finished = time.time()
                     job.progress(job.done, job.total, job.message)
 
-        threading.Thread(target=run, daemon=True, name=f"job-{job.id[:6]}").start()
+        if sync:
+            run()
+        else:
+            threading.Thread(target=run, daemon=True, name=f"job-{job.id[:6]}").start()
         return job
 
     def get(self, job_id):
