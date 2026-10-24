@@ -73,15 +73,23 @@ def create_app(cfg: Config | None = None) -> Flask:
             self.wsgi_app = wsgi_app
 
         def __call__(self, environ, start_response):
-            matched = environ.get("HTTP_X_MATCHED_PATH") or environ.get("HTTP_X_VERCEL_MATCHED_PATH")
-            if matched:
-                environ["PATH_INFO"] = matched
+            orig_path = (
+                environ.get("HTTP_X_MATCHED_PATH")
+                or environ.get("HTTP_X_VERCEL_MATCHED_PATH")
+                or environ.get("HTTP_X_FORWARDED_URI")
+                or environ.get("RAW_URI")
+                or environ.get("REQUEST_URI")
+            )
+            if orig_path:
+                clean_path = orig_path.split("?")[0]
+                if clean_path in ("/api/index", "/api/index.py"):
+                    environ["PATH_INFO"] = "/"
+                elif clean_path:
+                    environ["PATH_INFO"] = clean_path
             else:
                 path = environ.get("PATH_INFO", "")
-                if path.startswith("/api/index.py"):
-                    environ["PATH_INFO"] = path[len("/api/index.py"):] or "/"
-                elif path.startswith("/api/index"):
-                    environ["PATH_INFO"] = path[len("/api/index"):] or "/"
+                if path in ("/api/index.py", "/api/index"):
+                    environ["PATH_INFO"] = "/"
             return self.wsgi_app(environ, start_response)
 
     app.wsgi_app = VercelPathFixMiddleware(app.wsgi_app)

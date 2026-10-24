@@ -1,0 +1,1798 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>AccessFix PDF</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:wght@400;600;800&display=swap">
+<style>
+/* Layout: tool header, then a two-column workspace — sticky summary/actions panel on the left, grouped checkpoint list and tag tree on the right; stacks on phones. */
+:root{
+  --bg:#f2f5f6; --surface:#ffffff; --sunk:#e8eef0; --ink:#13222c; --muted:#56676f; --line:#d5dee2;
+  --accent:#0d5d72; --accent-ink:#ffffff; --accent-soft:#dcedf1;
+  --pass:#1d7348; --pass-bg:#e0f2e8; --fail:#b3261e; --fail-bg:#fce7e4; --warn:#8a5d00; --warn-bg:#fbf0d2;
+  --next:#5544b0; --next-bg:#ebe8fa;
+  --f-display:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"Atkinson Hyperlegible Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e161a; --surface:#152128; --sunk:#1b2a32; --ink:#e4edf1; --muted:#9bb0ba; --line:#263842;
+  --accent:#62c4da; --accent-ink:#04232b; --accent-soft:#16333c;
+  --pass:#62d39c; --pass-bg:#11301f; --fail:#ff8f85; --fail-bg:#3a1613; --warn:#f0c04f; --warn-bg:#33290d;
+  --next:#b7acff; --next-bg:#231f48; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e161a; --surface:#152128; --sunk:#1b2a32; --ink:#e4edf1; --muted:#9bb0ba; --line:#263842;
+  --accent:#62c4da; --accent-ink:#04232b; --accent-soft:#16333c;
+  --pass:#62d39c; --pass-bg:#11301f; --fail:#ff8f85; --fail-bg:#3a1613; --warn:#f0c04f; --warn-bg:#33290d;
+  --next:#b7acff; --next-bg:#231f48; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+
+.top{background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;padding-block:16px}
+.brand{display:flex;gap:12px;align-items:center;min-width:0}
+.brand svg{flex:none}
+.brand h1{font-size:1.35rem;font-weight:800;letter-spacing:-.01em}
+.brand p{margin:0;color:var(--muted);font-size:.88rem}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.samples{display:flex;align-items:center;gap:4px;flex-wrap:wrap;background:var(--sunk);border-radius:10px;padding:4px}
+.samples span{font:600 .72rem var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 6px}
+.samples .btn{border-color:transparent;background:transparent;padding:7px 10px}
+.samples .btn[aria-pressed="true"]{background:var(--surface);border-color:var(--line)}
+
+.btn{font:600 .92rem/1 var(--f-body);border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.sm{padding:7px 11px;font-size:.85rem}
+.btn.ai{border-style:dashed;color:var(--next);border-color:var(--next)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+body.busy [data-fix], body.busy #btnFixAll, body.busy .samples .btn, body.busy label[for="file"]{opacity:.5;pointer-events:none}
+
+.steps{list-style:none;display:flex;gap:6px;padding:0;margin:20px 0 16px;flex-wrap:wrap}
+.steps li{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--muted);padding:6px 12px 6px 6px;border-radius:999px;background:var(--sunk)}
+.steps li b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:600 .78rem var(--f-mono);background:var(--surface);color:var(--muted);border:1px solid var(--line)}
+.steps li.done b{background:var(--pass);color:var(--surface);border-color:var(--pass)}
+.steps li.now{color:var(--ink);background:var(--accent-soft)}
+.steps li.now b{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+.grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:20px;align-items:start;padding-bottom:48px}
+@media (max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:18px;position:sticky;top:16px}
+@media (max-width:880px){.panel{position:static}}
+.eyebrow{font:600 .72rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.file h2{font-size:1.05rem;word-break:break-word;margin-top:4px}
+.file dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:10px 0 0;font-size:.85rem}
+.file dt{color:var(--muted)} .file dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums;word-break:break-word}
+.tag{display:inline-block;font:600 .7rem var(--f-mono);letter-spacing:.04em;padding:2px 7px;border-radius:4px;background:var(--next-bg);color:var(--next);margin-left:6px;vertical-align:middle}
+
+.scores{display:flex;align-items:center;gap:12px;justify-content:center;padding:4px 0}
+.ring{display:flex;flex-direction:column;align-items:center;gap:2px}
+.ring svg{display:block}
+.ring .lbl{font:600 .72rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.arrow{color:var(--muted);font-size:1.4rem}
+.tally{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:0}
+.tally span{font:600 .8rem var(--f-mono);padding:3px 9px;border-radius:999px;font-variant-numeric:tabular-nums}
+.t-fail{background:var(--fail-bg);color:var(--fail)} .t-warn{background:var(--warn-bg);color:var(--warn)} .t-pass{background:var(--pass-bg);color:var(--pass)} .t-next{background:var(--next-bg);color:var(--next)}
+.actions{display:flex;flex-direction:column;gap:8px}
+.actions .btn{justify-content:center}
+.actions .row{display:flex;gap:8px} .actions .row .btn{flex:1}
+#msg{margin:0;font-size:.85rem;color:var(--muted);min-height:1.3em}
+#msg.err{color:var(--fail)}
+#msg.work::before{content:"";display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:50%;border:2px solid var(--accent);border-right-color:transparent;vertical-align:-1px}
+@media (prefers-reduced-motion:no-preference){#msg.work::before{animation:spin .8s linear infinite}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.note{font-size:.78rem;color:var(--muted);margin:0;border-top:1px solid var(--line);padding-top:12px}
+
+.group{margin-bottom:22px}
+.group-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 8px}
+.group-h h3{font-size:1rem;font-weight:800}
+.group-h span{font:.78rem var(--f-mono);color:var(--muted)}
+.list{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.check{display:grid;grid-template-columns:92px minmax(0,1fr);gap:14px;padding:14px 16px;border-top:1px solid var(--line)}
+.check:first-child{border-top:0}
+@media (max-width:520px){.check{grid-template-columns:minmax(0,1fr);gap:8px}}
+.pill{align-self:start;justify-self:start;display:inline-flex;align-items:center;gap:6px;font:600 .78rem var(--f-mono);padding:4px 9px;border-radius:6px;white-space:nowrap}
+.pill i{font-style:normal;font-size:.9rem;line-height:1}
+.s-pass .pill{background:var(--pass-bg);color:var(--pass)}
+.s-fail .pill{background:var(--fail-bg);color:var(--fail)}
+.s-warn .pill{background:var(--warn-bg);color:var(--warn)}
+.c-title{font-weight:600;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline}
+.c-ref{font:.74rem var(--f-mono);color:var(--muted)}
+.c-detail{margin:3px 0 0;color:var(--muted);font-size:.9rem;max-width:68ch}
+.fixed{font:600 .7rem var(--f-mono);padding:2px 7px;border-radius:4px;background:var(--pass);color:var(--surface)}
+.fix{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.fixrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fixrow label{font-size:.82rem;color:var(--muted);flex-basis:100%}
+.fixrow input,.fixrow select{flex:1 1 220px;min-width:0;font:inherit;font-size:.92rem;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.chip-next{display:inline-flex;gap:6px;align-items:center;font:600 .76rem var(--f-mono);padding:4px 9px;border-radius:6px;background:var(--next-bg);color:var(--next);align-self:flex-start}
+
+.review{background:var(--warn-bg);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:22px}
+.review h3{font-size:1rem;font-weight:800}
+.review-sub{margin:2px 0 8px;font-size:.85rem;color:var(--muted)}
+.review ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:.88rem;max-width:80ch}
+.claim{margin:0 0 8px;text-align:center;font-size:.75rem;color:var(--muted)}
+.tree{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:22px}
+.tree summary{cursor:pointer;padding:14px 16px;font-family:var(--f-display);font-weight:800;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tree summary span{font:.78rem var(--f-mono);color:var(--muted);font-weight:400}
+.tree-body{border-top:1px solid var(--line);padding:12px 16px 16px;max-height:520px;overflow:auto}
+.tree ul{list-style:none;margin:0;padding-left:18px;border-left:1px dashed var(--line)}
+.tree-body>ul{padding-left:0;border-left:0}
+.tree li{padding:3px 0;min-width:0}
+.role{display:inline-block;font:600 .74rem var(--f-mono);padding:1px 6px;border-radius:4px;background:var(--sunk);color:var(--ink);margin-right:6px}
+.role.h{background:var(--accent-soft);color:var(--accent)}
+.role.fig{background:var(--next-bg);color:var(--next)}
+.role.lnk{background:var(--warn-bg);color:var(--warn)}
+.role.lst{background:var(--pass-bg);color:var(--pass)}
+.tt{color:var(--muted);font-size:.86rem;overflow-wrap:anywhere}
+.alt{font-size:.8rem;color:var(--pass)}
+
+.drop{position:fixed;inset:0;z-index:20;background:color-mix(in srgb,var(--accent) 18%,transparent);display:grid;place-items:center;border:4px dashed var(--accent)}
+.drop p{background:var(--surface);color:var(--ink);padding:18px 26px;border-radius:12px;font-weight:600;font-size:1.1rem}
+.loading{padding:40px;text-align:center;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:12px}
+@media (prefers-reduced-motion:no-preference){.ring circle.v{transition:stroke-dashoffset .6s ease}}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div class="brand">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="3" width="24" height="31" rx="3" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/><path d="M11 12h14M11 17h14M11 22h8" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/><circle cx="29" cy="29" r="8" fill="var(--pass)"/><path d="M25.5 29l2.4 2.4 4.6-4.8" stroke="var(--surface)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><h1>AccessFix PDF</h1><p>Check, tag and repair PDFs for PDF/UA-1 and WCAG 2.2</p></div>
+    </div>
+    <div class="top-actions">
+      <div class="samples" role="group" aria-label="Sample documents">
+        <span>Samples</span>
+        <button class="btn sm" type="button" data-sample="worksheet">Forms &amp; maths</button>
+        <button class="btn sm" type="button" data-sample="untagged">Untagged</button>
+        <button class="btn sm" type="button" data-sample="broken">Broken tags</button>
+        <button class="btn sm" type="button" data-sample="scanned">Scanned</button>
+      </div>
+      <label class="btn primary" for="file">Open PDF</label>
+      <input class="sr" type="file" id="file" accept="application/pdf,.pdf">
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <ol class="steps" id="steps" aria-label="Progress">
+    <li data-step="1"><b>1</b>Load</li><li data-step="2"><b>2</b>Check</li><li data-step="3"><b>3</b>Fix</li><li data-step="4"><b>4</b>Verify</li>
+  </ol>
+  <div class="grid">
+    <aside class="panel" aria-label="Document summary">
+      <div class="file" id="fileInfo"><span class="eyebrow">Document</span><h2>Loading…</h2></div>
+      <div id="scoreBox"></div>
+      <div class="actions">
+        <button class="btn primary" id="btnFixAll" type="button">Fix all auto-fixable issues</button>
+        <button class="btn" id="btnDownload" type="button">Download fixed PDF</button>
+        <button class="btn" id="btnSend" type="button" title="Upload the current file to the AccessFix validator and re-check it with the structure engine">Send to AccessFix validator</button>
+        <a class="btn" href="/">Back to validator</a>
+        <div class="row">
+          <button class="btn sm" id="btnReport" type="button">Export report</button>
+          <button class="btn sm" id="btnReset" type="button">Undo all fixes</button>
+        </div>
+      </div>
+      <p id="msg" role="status" aria-live="polite"></p>
+      <p class="note">Checking, tagging and on-device OCR run in your browser. A page image or its text is sent to Claude only when you ask for an AI suggestion, or when on-device OCR can't start and Claude vision OCR is used instead.</p>
+    </aside>
+    <section id="checks" aria-label="Accessibility checkpoints"><div class="loading">Preparing the sample document…</div></section>
+  </div>
+</main>
+<div class="drop" id="drop" hidden><p>Drop the PDF to check it</p></div>
+
+<script>
+const {PDFDocument,PDFName,PDFString,PDFHexString,PDFDict,PDFArray,PDFRef,PDFRawStream,PDFNumber,PDFBool,StandardFonts,rgb,decodePDFRawStream} = PDFLib;
+const N = s => PDFName.of(s);
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const FONTKIT_URL = 'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js';
+const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+const TESS_WORKER = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js';
+const TESS_CORE = 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1';
+const S = {name:'', sample:'', orig:null, cur:null, before:null, after:null, pdfjs:null, textCur:null, step:1, busy:false,
+  inputs:{title:'', lang:'en-IN', alts:{}}, downloads:null, ai:null};
+
+/* =========================================================
+   Low-level helpers
+   ========================================================= */
+function nameStr(o){ return o instanceof PDFName ? o.toString().slice(1).replace(/#([0-9a-fA-F]{2})/g, (m,h) => String.fromCharCode(parseInt(h,16))) : ''; }
+function txt(o){ if(!o) return ''; if(o instanceof PDFString || o instanceof PDFHexString) return o.decodeText(); return ''; }
+function numOf(o){ return o instanceof PDFNumber ? o.asNumber() : (o && o.asNumber ? o.asNumber() : null); }
+function isTrue(o){ return o instanceof PDFBool && o.asBoolean ? o.asBoolean() : String(o) === 'true'; }
+function streamBytes(st){ if(st instanceof PDFRawStream) return decodePDFRawStream(st).decode(); if(st && st.getContents) return st.getContents(); return new Uint8Array(0); }
+function streamText(st){ try{ return new TextDecoder().decode(streamBytes(st)); }catch(e){ return ''; } }
+function bin(u8){ let s = ''; for(let i=0;i<u8.length;i+=8192) s += String.fromCharCode.apply(null, u8.subarray(i, i+8192)); return s; }
+function unbin(s){ const u = new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i] = s.charCodeAt(i) & 255; return u; }
+const f2 = n => (Math.round(n*100)/100).toString();
+
+/* ---------- character mapping tables ---------- */
+const mkTable = enc => { let d; try{ d = new TextDecoder(enc); }catch(e){ return null; } const t = []; for(let i=0;i<256;i++) t[i] = i < 32 ? '' : d.decode(Uint8Array.of(i)); return t; };
+const WIN = (() => { const t = []; for(let i=0;i<256;i++) t[i] = i < 32 || (i > 126 && i < 160) ? '' : String.fromCharCode(i);
+  const hi = {128:'€',130:'‚',131:'ƒ',132:'„',133:'…',134:'†',135:'‡',136:'ˆ',137:'‰',138:'Š',139:'‹',140:'Œ',142:'Ž',145:'‘',146:'’',147:'“',148:'”',149:'•',150:'–',151:'—',152:'˜',153:'™',154:'š',155:'›',156:'œ',158:'ž',159:'Ÿ'};
+  for(const k in hi) t[k] = hi[k]; return t; })();
+const MAC = (() => { const t = mkTable('macintosh'); return t && t[0xA5] === '•' ? t : WIN; })();
+const STD = WIN.slice(); STD[39] = '\u2019'; STD[96] = '\u2018';
+const AGL = {space:' ',exclam:'!',quotedbl:'"',numbersign:'#',dollar:'$',percent:'%',ampersand:'&',quotesingle:"'",quoteright:'\u2019',parenleft:'(',parenright:')',asterisk:'*',plus:'+',comma:',',hyphen:'-',period:'.',slash:'/',colon:':',semicolon:';',less:'<',equal:'=',greater:'>',question:'?',at:'@',bracketleft:'[',backslash:'\\',bracketright:']',asciicircum:'^',underscore:'_',grave:'`',quoteleft:'\u2018',braceleft:'{',bar:'|',braceright:'}',asciitilde:'~',
+  zero:'0',one:'1',two:'2',three:'3',four:'4',five:'5',six:'6',seven:'7',eight:'8',nine:'9',bullet:'\u2022',endash:'\u2013',emdash:'\u2014',ellipsis:'\u2026',quotedblleft:'\u201C',quotedblright:'\u201D',quotesinglbase:'\u201A',quotedblbase:'\u201E',
+  fi:'fi',fl:'fl',ff:'ff',ffi:'ffi',ffl:'ffl',Euro:'\u20AC',trademark:'\u2122',copyright:'\u00A9',registered:'\u00AE',degree:'\u00B0',section:'\u00A7',paragraph:'\u00B6',dagger:'\u2020',daggerdbl:'\u2021',minus:'\u2212',multiply:'\u00D7',divide:'\u00F7',plusminus:'\u00B1',periodcentered:'\u00B7',
+  sterling:'\u00A3',yen:'\u00A5',cent:'\u00A2',nbspace:'\u00A0',nonbreakingspace:'\u00A0',exclamdown:'\u00A1',questiondown:'\u00BF',guillemotleft:'\u00AB',guillemotright:'\u00BB',guilsinglleft:'\u2039',guilsinglright:'\u203A',germandbls:'\u00DF',ae:'\u00E6',AE:'\u00C6',oe:'\u0153',OE:'\u0152',
+  oslash:'\u00F8',Oslash:'\u00D8',eth:'\u00F0',Eth:'\u00D0',thorn:'\u00FE',Thorn:'\u00DE',dotlessi:'\u0131',lslash:'\u0142',Lslash:'\u0141',florin:'\u0192',perthousand:'\u2030',onehalf:'\u00BD',onequarter:'\u00BC',threequarters:'\u00BE',mu:'\u00B5',logicalnot:'\u00AC',brokenbar:'\u00A6',
+  ordfeminine:'\u00AA',ordmasculine:'\u00BA',onesuperior:'\u00B9',twosuperior:'\u00B2',threesuperior:'\u00B3',currency:'\u00A4',circumflex:'\u02C6',tilde:'\u02DC',dieresis:'\u00A8',acute:'\u00B4',cedilla:'\u00B8',macron:'\u00AF',fraction:'\u2044',arrowright:'\u2192',arrowleft:'\u2190',checkmark:'\u2713'};
+const ACC = {acute:'\u0301',grave:'\u0300',circumflex:'\u0302',tilde:'\u0303',dieresis:'\u0308',ring:'\u030A',cedilla:'\u0327',caron:'\u030C',macron:'\u0304',breve:'\u0306',dotaccent:'\u0307',ogonek:'\u0328',hungarumlaut:'\u030B',commaaccent:'\u0326'};
+function g2u(name){
+  if(!name || name === '.notdef') return null;
+  name = name.split('.')[0]; if(!name) return null;
+  if(name.includes('_')){ const parts = name.split('_').map(g2u); return parts.every(Boolean) ? parts.join('') : null; }
+  if(AGL[name]) return AGL[name];
+  if(/^[A-Za-z]$/.test(name)) return name;
+  let m = /^uni((?:[0-9A-Fa-f]{4})+)$/.exec(name); if(m) return m[1].match(/.{4}/g).map(h => String.fromCharCode(parseInt(h,16))).join('');
+  m = /^u([0-9A-Fa-f]{4,6})$/.exec(name); if(m) return String.fromCodePoint(parseInt(m[1],16));
+  m = /^([A-Za-z])(acute|grave|circumflex|tilde|dieresis|ring|cedilla|caron|macron|breve|dotaccent|ogonek|hungarumlaut|commaaccent)$/.exec(name); if(m) return (m[1] + ACC[m[2]]).normalize('NFC');
+  return null;
+}
+function parseCMap(t){
+  const map = new Map(); let bytes = 0;
+  const u16 = h => { if(h.length % 4) h = h.padStart(Math.ceil(h.length/4)*4, '0'); let s = ''; for(let k=0;k<h.length;k+=4) s += String.fromCharCode(parseInt(h.substr(k,4),16)); return s; };
+  const cs = /begincodespacerange\s*<([0-9a-fA-F]+)>/.exec(t); if(cs) bytes = cs[1].length/2;
+  let m; const bc = /beginbfchar([\s\S]*?)endbfchar/g;
+  while((m = bc.exec(t))){ const re = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]*)>/g; let p; while((p = re.exec(m[1]))){ map.set(parseInt(p[1],16), u16(p[2])); if(!bytes) bytes = p[1].length/2; } }
+  const br = /beginbfrange([\s\S]*?)endbfrange/g;
+  while((m = br.exec(t))){ const re = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*(?:<([0-9a-fA-F]*)>|\[([^\]]*)\])/g; let p;
+    while((p = re.exec(m[1]))){ const lo = parseInt(p[1],16), hi = parseInt(p[2],16); if(!bytes) bytes = p[1].length/2; if(hi - lo > 65535 || hi < lo) continue;
+      if(p[3] !== undefined){ const base = u16(p[3]); if(!base) continue; const last = base.charCodeAt(base.length-1); for(let c=lo;c<=hi;c++) map.set(c, base.slice(0,-1) + String.fromCharCode(last + (c-lo))); }
+      else { const items = [...p[4].matchAll(/<([0-9a-fA-F]*)>/g)].map(x => u16(x[1])); for(let c=lo;c<=hi;c++) if(items[c-lo] !== undefined) map.set(c, items[c-lo]); } } }
+  return {map, bytes: bytes || 1};
+}
+function encodingTable(ctx, f, diffsOnly){
+  const L = x => ctx.lookup(x); const enc = L(f.get(N('Encoding'))); let t = WIN, diffs = null;
+  const pick = e => e === 'MacRomanEncoding' ? MAC : e === 'StandardEncoding' ? STD : WIN;
+  if(enc instanceof PDFName) t = pick(nameStr(enc));
+  else if(enc instanceof PDFDict){ t = pick(nameStr(L(enc.get(N('BaseEncoding'))))); diffs = L(enc.get(N('Differences'))); }
+  else if(/Symbol|Dingbats/i.test(nameStr(f.get(N('BaseFont'))))) t = [];
+  t = diffsOnly ? [] : t.slice();
+  if(diffs instanceof PDFArray){ let code = 0; for(let i=0;i<diffs.size();i++){ const v = L(diffs.get(i)); if(v instanceof PDFNumber) code = v.asNumber(); else if(v instanceof PDFName){ t[code] = g2u(nameStr(v)) || ''; code++; } } }
+  return t;
+}
+function diffsMappable(ctx, enc){
+  const d = enc instanceof PDFDict ? ctx.lookup(enc.get(N('Differences'))) : null; if(!(d instanceof PDFArray)) return true;
+  for(let i=0;i<d.size();i++){ const v = ctx.lookup(d.get(i)); if(v instanceof PDFName && nameStr(v) !== '.notdef' && !g2u(nameStr(v))) return false; }
+  return true;
+}
+function descendant(ctx, f){ try{ return ctx.lookup(ctx.lookup(f.get(N('DescendantFonts'))).get(0)); }catch(e){ return null; } }
+function fontDescriptor(ctx, f){ const sub = nameStr(f.get(N('Subtype'))); const d = sub === 'Type0' ? descendant(ctx, f) : f; const fd = d && ctx.lookup(d.get(N('FontDescriptor'))); return fd instanceof PDFDict ? fd : null; }
+
+/* TrueType tables: cmap subtables and post glyph names */
+function readCmapSub(dv, u8, o){
+  const fmt = dv.getUint16(o); const m = new Map();
+  if(fmt === 0){ for(let c=0;c<256;c++){ const g = u8[o+6+c]; if(g) m.set(c, g); } }
+  else if(fmt === 4){ const seg = dv.getUint16(o+6)/2, ends = o+14, starts = ends + seg*2 + 2, deltas = starts + seg*2, ros = deltas + seg*2;
+    for(let s=0;s<seg;s++){ const end = dv.getUint16(ends+2*s), start = dv.getUint16(starts+2*s), delta = dv.getInt16(deltas+2*s), ra = ros+2*s, ro = dv.getUint16(ra);
+      for(let c=start;c<=end && c!==0xFFFF;c++){ let g; if(ro === 0) g = (c+delta) & 0xFFFF; else { const ga = ra + ro + 2*(c-start); if(ga+2 > u8.byteLength) continue; g = dv.getUint16(ga); if(g) g = (g+delta) & 0xFFFF; } if(g) m.set(c, g); } } }
+  else if(fmt === 6){ const first = dv.getUint16(o+6), cnt = dv.getUint16(o+8); for(let i=0;i<cnt;i++){ const g = dv.getUint16(o+10+2*i); if(g) m.set(first+i, g); } }
+  else if(fmt === 12){ const n = dv.getUint32(o+12); for(let k=0;k<n;k++){ const b = o+16+12*k, sc = dv.getUint32(b), ec = dv.getUint32(b+4), sg = dv.getUint32(b+8); for(let c=sc;c<=ec && c-sc<70000;c++) m.set(c, sg+(c-sc)); } }
+  else return null;
+  return m;
+}
+function ttfParse(u8){
+  try{
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength); const num = dv.getUint16(4); const tables = {};
+    for(let i=0;i<num;i++){ const r = 12 + 16*i; tables[String.fromCharCode(u8[r],u8[r+1],u8[r+2],u8[r+3])] = {off: dv.getUint32(r+8), len: dv.getUint32(r+12)}; }
+    const cm = {u: new Map(), s30: null, m10: null};
+    if(tables.cmap){ const off = tables.cmap.off; const nSub = dv.getUint16(off+2);
+      for(let i=0;i<nSub;i++){
+        const p = dv.getUint16(off+4+8*i), e = dv.getUint16(off+6+8*i), so = off + dv.getUint32(off+8+8*i);
+        let m = null; try{ m = readCmapSub(dv, u8, so); }catch(err){ m = null; } if(!m) continue;
+        if(p === 0 || (p === 3 && (e === 1 || e === 10))){ for(const [c,g] of m) if(!cm.u.has(c)) cm.u.set(c, g); }
+        else if(p === 3 && e === 0) cm.s30 = m;
+        else if(p === 1 && e === 0) cm.m10 = m;
+      } }
+    const names = new Map();
+    if(tables.post){ const o = tables.post.off; if(dv.getUint32(o) === 0x00020000){ const ng = dv.getUint16(o+32); const idx = []; for(let i=0;i<ng;i++) idx.push(dv.getUint16(o+34+2*i));
+      let q = o + 34 + 2*ng; const custom = []; const end = Math.min(u8.byteLength, o + tables.post.len); while(q < end){ const l = u8[q]; custom.push(String.fromCharCode(...u8.subarray(q+1, q+1+l))); q += 1 + l; }
+      idx.forEach((ix, g) => { if(ix >= 258 && custom[ix-258]) names.set(g, custom[ix-258]); }); } }
+    const gmap = new Map(); for(const [c, g] of [...cm.u].sort((a,b) => a[0]-b[0])) if(g && c >= 32 && !(c >= 0xE000 && c <= 0xF8FF) && !gmap.has(g)) gmap.set(g, String.fromCodePoint(c));
+    for(const [g, nm] of names) if(!gmap.has(g)){ const u = g2u(nm); if(u) gmap.set(g, u); }
+    return {cm, g2u: gmap};
+  }catch(e){ return null; }
+}
+const ttfCache = new WeakMap();
+function ttfOf(ctx, f){ const fd = fontDescriptor(ctx, f); const ff = fd && ctx.lookup(fd.get(N('FontFile2'))); if(!ff) return null; if(ttfCache.has(ff)) return ttfCache.get(ff); let t = null; try{ t = ttfParse(streamBytes(ff)); }catch(e){} ttfCache.set(ff, t); return t; }
+function type0UniEntries(ctx, f){
+  const t = ttfOf(ctx, f); if(!t || !t.g2u.size) return null;
+  const out = []; const df = descendant(ctx, f); const c2g = df && ctx.lookup(df.get(N('CIDToGIDMap')));
+  if(c2g && c2g.dict){ const b = streamBytes(c2g); for(let cid=0; cid*2+1<b.length; cid++){ const u = t.g2u.get((b[cid*2]<<8) | b[cid*2+1]); if(u) out.push([cid, u]); } }
+  else for(const [g,u] of t.g2u) out.push([g,u]);
+  return out.length ? out : null;
+}
+/* Built-in encodings of the Symbol font and common Wingdings bullets */
+const SYMBOL = (() => { const t = []; for(let c=32;c<127;c++) t[c] = String.fromCharCode(c);
+  const m = {34:'∀',36:'∃',39:'∋',42:'∗',45:'−',64:'≅',65:'Α',66:'Β',67:'Χ',68:'Δ',69:'Ε',70:'Φ',71:'Γ',72:'Η',73:'Ι',74:'ϑ',75:'Κ',76:'Λ',77:'Μ',78:'Ν',79:'Ο',80:'Π',81:'Θ',82:'Ρ',83:'Σ',84:'Τ',85:'Υ',86:'ς',87:'Ω',88:'Ξ',89:'Ψ',90:'Ζ',92:'∴',94:'⊥',97:'α',98:'β',99:'χ',100:'δ',101:'ε',102:'φ',103:'γ',104:'η',105:'ι',106:'ϕ',107:'κ',108:'λ',109:'μ',110:'ν',111:'ο',112:'π',113:'θ',114:'ρ',115:'σ',116:'τ',117:'υ',118:'ϖ',119:'ω',120:'ξ',121:'ψ',122:'ζ',126:'∼',
+    161:'ϒ',162:'′',163:'≤',164:'⁄',165:'∞',166:'ƒ',167:'♣',168:'♦',169:'♥',170:'♠',171:'↔',172:'←',173:'↑',174:'→',175:'↓',176:'°',177:'±',178:'″',179:'≥',180:'×',181:'∝',182:'∂',183:'•',184:'÷',185:'≠',186:'≡',187:'≈',188:'…',191:'↵',192:'ℵ',193:'ℑ',194:'ℜ',195:'℘',196:'⊗',197:'⊕',198:'∅',199:'∩',200:'∪',201:'⊃',202:'⊇',203:'⊄',204:'⊂',205:'⊆',206:'∈',207:'∉',208:'∠',209:'∇',213:'∏',214:'√',215:'⋅',216:'¬',217:'∧',218:'∨',219:'⇔',220:'⇐',221:'⇑',222:'⇒',223:'⇓',224:'◊',225:'〈',229:'∑',241:'〉',242:'∫'};
+  delete t[96]; for(const k in m) t[k] = m[k]; return t; })();
+const WING = {108:'●',110:'■',113:'❑',117:'◆',118:'❖',167:'▪',168:'◻',216:'➢',251:'✗',252:'✓'};
+const symTable = (base, c) => /Wingdings/i.test(base) ? WING[c] : /Symbol/i.test(base) ? SYMBOL[c] : undefined;
+const normPUA = (base, u) => { if(u && u.length === 1){ const cp = u.charCodeAt(0); if(cp >= 0xF020 && cp <= 0xF0FF) return symTable(base, cp - 0xF000) || u; } return u; };
+const BAD_U = s => !s || /^[\u0000\uFEFF\uFFFE\uFFFD]+$/.test(s);
+/* Usage-based check: every character code the content actually shows must map to a valid Unicode value */
+function uniEval(ctx, f, used){
+  const L = x => ctx.lookup(x); const sub = nameStr(f.get(N('Subtype'))); const two = sub === 'Type0';
+  const base = nameStr(f.get(N('BaseFont'))).replace(/^[A-Z]{6}\+/, '');
+  const tuS = L(f.get(N('ToUnicode'))); let tu = null; if(tuS && tuS.dict){ try{ tu = parseCMap(streamText(tuS)).map; }catch(e){ tu = null; } }
+  const enc = L(f.get(N('Encoding'))); const encName = nameStr(enc);
+  const fd = fontDescriptor(ctx, f); const flags = fd ? (numOf(L(fd.get(N('Flags')))) || 0) : 0;
+  const symbolic = /Symbol|Dingbat|Wingding|Webding/i.test(base) || (!!(flags & 4) && !(flags & 32));
+  const res = {two, tu, base, symbolic, bad: [], status: 'ok', namedOK: false, table: null};
+  if(two && /UCS2|UTF16/.test(encName)) return res;
+  res.namedOK = !two && sub !== 'Type3' && !symbolic && (!enc || enc instanceof PDFName || (enc instanceof PDFDict && diffsMappable(ctx, enc)));
+  res.table = two ? null : encodingTable(ctx, f, !res.namedOK);
+  for(const c of (used || [])){ const t = tu ? tu.get(c) : undefined; if(t !== undefined && !BAD_U(t)) continue; if(res.namedOK && res.table[c]) continue; res.bad.push(c); }
+  if(res.bad.length) res.status = 'bad';
+  return res;
+}
+/* Character codes → Unicode taken from the embedded font program */
+function programMap(ctx, f){
+  const out = new Map(); const sub = nameStr(f.get(N('Subtype')));
+  try{
+    if(sub === 'Type0'){ const e = type0UniEntries(ctx, f); if(e) e.forEach(([c,u]) => out.set(c, u)); return out; }
+    const t = ttfOf(ctx, f);
+    if(t){ for(let c=0;c<256;c++){ let g = null; if(t.cm.s30) g = t.cm.s30.get(0xF000+c) || t.cm.s30.get(0xF100+c) || t.cm.s30.get(c); else if(t.cm.m10) g = t.cm.m10.get(c); if(g && t.g2u.has(g)) out.set(c, t.g2u.get(g)); } return out; }
+    const fd = fontDescriptor(ctx, f); const ff = fd && ctx.lookup(fd.get(N('FontFile')));
+    if(ff){ const b = streamBytes(ff); const l1 = numOf(ctx.lookup(ff.dict.get(N('Length1')))) || Math.min(b.length, 65536); const s = bin(b.subarray(0, Math.min(l1, b.length)));
+      if(/\/Encoding\s+StandardEncoding\s+def/.test(s)) STD.forEach((u, c) => { if(u) out.set(c, u); });
+      else { const re = /dup\s+(\d+)\s*\/([^\s\/\[\]{}()<>]+)\s+put/g; let m; while((m = re.exec(s))){ const u = g2u(m[2]); if(u) out.set(+m[1], u); } } }
+  }catch(e){}
+  return out;
+}
+function buildCMap(entries, nb){
+  const hx = (n, l) => n.toString(16).toUpperCase().padStart(l, '0');
+  const u16 = s => [...s].map(ch => { const cp = ch.codePointAt(0); if(cp > 0xFFFF){ const v = cp - 0x10000; return hx(0xD800 + (v>>10), 4) + hx(0xDC00 + (v & 0x3FF), 4); } return hx(cp, 4); }).join('');
+  let body = ''; for(let i=0;i<entries.length;i+=100){ const ch = entries.slice(i, i+100); body += `${ch.length} beginbfchar\n` + ch.map(([c,s]) => `<${hx(c, nb*2)}> <${u16(s)}>`).join('\n') + '\nendbfchar\n'; }
+  return `/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n1 begincodespacerange\n<${'0'.repeat(nb*2)}> <${'F'.repeat(nb*2)}>\nendcodespacerange\n${body}endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n`;
+}
+function makeDecoder(ctx, f){
+  const L = x => ctx.lookup(x); const sub = nameStr(f.get(N('Subtype'))); const base = nameStr(f.get(N('BaseFont')));
+  const fd = fontDescriptor(ctx, f); const weight = fd ? (numOf(L(fd.get(N('FontWeight')))) || 0) : 0; const flags = fd ? (numOf(L(fd.get(N('Flags')))) || 0) : 0;
+  const bold = /bold|black|heavy|semibold|demi/i.test(base) || weight >= 600 || !!(flags & (1<<18));
+  const tu = L(f.get(N('ToUnicode'))); let cm = null; if(tu && tu.dict){ const t = streamText(tu); if(t) cm = parseCMap(t); }
+  const two = sub === 'Type0'; const ucs = two && /UCS2|UTF16/.test(nameStr(L(f.get(N('Encoding')))));
+  const table = two ? null : encodingTable(ctx, f);
+  const dec = s => { let out = '';
+    if(two){ for(let i=0;i+1<s.length;i+=2){ const code = (s.charCodeAt(i)<<8) | s.charCodeAt(i+1); out += cm ? (cm.map.get(code) || '') : ucs ? String.fromCharCode(code) : ''; } }
+    else for(let i=0;i<s.length;i++){ const b = s.charCodeAt(i); out += (cm && cm.map.has(b) ? cm.map.get(b) : table[b]) || ''; }
+    return out; };
+  let wfn;
+  if(two){ const df = descendant(ctx, f); const dw = df ? (numOf(L(df.get(N('DW')))) ?? 1000) : 1000; const wm = new Map(); const W = df && L(df.get(N('W')));
+    if(W instanceof PDFArray){ let i = 0; while(i < W.size()){ const c0 = numOf(L(W.get(i))); const nx = L(W.get(i+1)); if(c0 == null) break;
+      if(nx instanceof PDFArray){ for(let j=0;j<nx.size();j++) wm.set(c0+j, numOf(L(nx.get(j))) || 0); i += 2; }
+      else { const c1 = numOf(nx), w = numOf(L(W.get(i+2))) || 0; if(c1 == null) break; for(let c=c0;c<=c1 && c-c0<65536;c++) wm.set(c, w); i += 3; } } }
+    wfn = c => wm.has(c) ? wm.get(c) : dw; }
+  else if(sub === 'Type3') wfn = () => 500;
+  else { const fc = numOf(L(f.get(N('FirstChar')))) || 0; const Wa = L(f.get(N('Widths'))); const arr = Wa instanceof PDFArray ? Wa.asArray().map(x => numOf(L(x)) || 0) : null;
+    const mw = fd ? (numOf(L(fd.get(N('MissingWidth')))) || 0) : 0; const avg = /Courier|Mono/i.test(base) ? 600 : /Times|Serif|Roman|Georgia/i.test(base) ? 450 : 520;
+    wfn = c => { if(arr){ const w = arr[c - fc]; return w != null ? w : (mw || avg); } return c === 32 ? 278 : avg; }; }
+  const width = str => { let w = 0, n = 0, sp = 0; if(two){ for(let i=0;i+1<str.length;i+=2){ w += wfn((str.charCodeAt(i)<<8) | str.charCodeAt(i+1)); n++; } } else for(let i=0;i<str.length;i++){ const c = str.charCodeAt(i); w += wfn(c); n++; if(c === 32) sp++; } return {w, n, sp}; };
+  return {dec, bold, ok: two ? !!(cm || ucs) : true, two, used: new Set(), width, base: base.replace(/^[A-Z]{6}\+/, '')};
+}
+
+/* =========================================================
+   Content stream lexer
+   ========================================================= */
+const isWS = c => c===32||c===10||c===13||c===9||c===12||c===0;
+const isDelim = c => c===40||c===41||c===60||c===62||c===91||c===93||c===123||c===125||c===47||c===37;
+function lexValue(s, i){
+  const n = s.length, c = s.charCodeAt(i);
+  if(c === 40){ let depth = 1, out = '', j = i+1;
+    while(j < n){ const ch = s.charCodeAt(j);
+      if(ch === 92){ const nx = s[j+1]; j += 2;
+        if(nx==='n') out+='\n'; else if(nx==='r') out+='\r'; else if(nx==='t') out+='\t'; else if(nx==='b') out+='\b'; else if(nx==='f') out+='\f';
+        else if(nx==='\r'){ if(s[j]==='\n') j++; } else if(nx==='\n'){ }
+        else if(nx >= '0' && nx <= '7'){ let oct = nx; while(oct.length < 3 && s[j] >= '0' && s[j] <= '7'){ oct += s[j]; j++; } out += String.fromCharCode(parseInt(oct,8) & 255); }
+        else if(nx !== undefined) out += nx;
+        continue; }
+      if(ch === 40) depth++; else if(ch === 41){ depth--; if(depth === 0){ j++; break; } }
+      out += s[j]; j++; }
+    return [{t:'str', v:out}, j]; }
+  if(c === 60){
+    if(s.charCodeAt(i+1) === 60){ let j = i+2, depth = 1;
+      while(j < n && depth > 0){ const ch = s.charCodeAt(j);
+        if(ch === 60 && s.charCodeAt(j+1) === 60){ depth++; j += 2; continue; }
+        if(ch === 62 && s.charCodeAt(j+1) === 62){ depth--; j += 2; continue; }
+        if(ch === 40){ j = lexValue(s, j)[1]; continue; }
+        j++; }
+      return [{t:'dict', raw:s.slice(i, j)}, j]; }
+    let j = i+1, hex = ''; while(j < n && s.charCodeAt(j) !== 62){ const ch = s[j]; if(/[0-9a-fA-F]/.test(ch)) hex += ch; j++; }
+    if(hex.length % 2) hex += '0'; let out = ''; for(let k=0;k<hex.length;k+=2) out += String.fromCharCode(parseInt(hex.substr(k,2),16));
+    return [{t:'str', v:out, hex:true}, j+1]; }
+  if(c === 91){ const arr = []; let j = i+1;
+    while(j < n){ const ch = s.charCodeAt(j); if(isWS(ch)){ j++; continue; } if(ch === 93){ j++; break; }
+      if(ch === 37){ while(j < n && s.charCodeAt(j) !== 10 && s.charCodeAt(j) !== 13) j++; continue; }
+      const r = lexValue(s, j);
+      if(r[0] === null){ let k = j; while(k < n && !isWS(s.charCodeAt(k)) && !isDelim(s.charCodeAt(k))) k++; if(k === j) k++; arr.push({t:'kw', v:s.slice(j,k)}); j = k; }
+      else { arr.push(r[0]); j = r[1]; } }
+    return [{t:'arr', v:arr}, j]; }
+  if(c === 47){ let j = i+1; while(j < n && !isWS(s.charCodeAt(j)) && !isDelim(s.charCodeAt(j))) j++; return [{t:'name', v:s.slice(i+1, j).replace(/#([0-9a-fA-F]{2})/g, (m,h) => String.fromCharCode(parseInt(h,16)))}, j]; }
+  if((c>=48&&c<=57) || c===43 || c===45 || c===46){ let j = i; while(j < n && !isWS(s.charCodeAt(j)) && !isDelim(s.charCodeAt(j))) j++; const v = parseFloat(s.slice(i,j)); return [{t:'num', v: isNaN(v) ? 0 : v}, j]; }
+  return [null, i];
+}
+function parseContent(s){
+  const ops = [], n = s.length; let args = [], argStart = -1, i = 0;
+  while(i < n){
+    const c = s.charCodeAt(i);
+    if(isWS(c)){ i++; continue; }
+    if(c === 37){ while(i < n && s.charCodeAt(i) !== 10 && s.charCodeAt(i) !== 13) i++; continue; }
+    const r = lexValue(s, i);
+    if(r[0] !== null){ if(argStart < 0) argStart = i; args.push(r[0]); i = r[1]; continue; }
+    let j = i; while(j < n && !isWS(s.charCodeAt(j)) && !isDelim(s.charCodeAt(j))) j++;
+    if(j === i){ i++; continue; }
+    const kw = s.slice(i, j);
+    if(kw === 'true' || kw === 'false' || kw === 'null'){ if(argStart < 0) argStart = i; args.push({t:'kw', v:kw}); i = j; continue; }
+    let end = j;
+    if(kw === 'BI'){ const re = /\sID\s/g; re.lastIndex = j - 1; const mm = re.exec(s);
+      if(!mm) end = n; else { const re2 = /\sEI(?=\s|$)/g; re2.lastIndex = mm.index + 4; const me = re2.exec(s); end = me ? me.index + 3 : n; args.push({t:'inline', raw:s.slice(j, mm.index)}); } }
+    ops.push({op:kw, args, start: argStart < 0 ? i : argStart, end});
+    args = []; argStart = -1; i = end;
+  }
+  return ops;
+}
+function rewrite(s, ops, pre, post, drop){
+  let out = '', prev = 0;
+  for(let k=0;k<ops.length;k++){ const o = ops[k]; out += s.slice(prev, o.start); if(pre[k]) out += pre[k] + '\n'; if(!drop.has(k)) out += s.slice(o.start, o.end); if(post[k]) out += '\n' + post[k]; prev = o.end; }
+  return out + s.slice(prev);
+}
+function pageContent(ctx, page){
+  const c = page.node.Contents(); const parts = [];
+  const add = st => { if(st) parts.push(bin(streamBytes(st))); };
+  if(c instanceof PDFArray){ for(let i=0;i<c.size();i++) add(ctx.lookup(c.get(i))); } else add(c);
+  return parts.join('\n');
+}
+function setContent(ctx, page, s){ page.node.set(N('Contents'), ctx.register(ctx.flateStream(unbin(s)))); }
+
+/* =========================================================
+   Content scanner: marked content, text lines, paths, images
+   ========================================================= */
+function pageEnv(ctx, res, cache, depth){
+  const L = x => ctx.lookup(x); const fonts = {}, xobj = {}; let props = null;
+  if(res instanceof PDFDict){
+    const fd = L(res.get(N('Font')));
+    if(fd instanceof PDFDict) for(const [k, v] of fd.entries()){ const key = v instanceof PDFRef ? v.toString() : null; let d = key && cache.get(key);
+      if(!d){ const f = L(v); if(f instanceof PDFDict){ try{ d = makeDecoder(ctx, f); }catch(e){ d = {dec:() => '', bold:false, ok:false}; } if(key) cache.set(key, d); } }
+      if(d) fonts[nameStr(k)] = d; }
+    const xd = L(res.get(N('XObject')));
+    if(xd instanceof PDFDict) for(const [k, v] of xd.entries()){ const x = L(v); if(x && x.dict) xobj[nameStr(k)] = {type: nameStr(x.dict.get(N('Subtype'))), stream:x, ref: v instanceof PDFRef ? v.toString() : null}; }
+    props = L(res.get(N('Properties')));
+  }
+  const propMcid = name => { if(!(props instanceof PDFDict)) return null; const p = L(props.get(N(name))); return p instanceof PDFDict ? numOf(L(p.get(N('MCID')))) : null; };
+  return {ctx, fonts, xobj, propMcid, cache, res, depth: depth || 0};
+}
+function formInfo(env, xi){
+  if(xi.info) return xi.info;
+  xi.info = {hasText:false, allMarked:true, hasMcid:false};
+  if(env.depth > 3) return xi.info;
+  try{
+    const ctx = env.ctx; const s = bin(streamBytes(xi.stream)); const sub = ctx.lookup(xi.stream.dict.get(N('Resources')));
+    const r = scanOps(parseContent(s), pageEnv(ctx, sub instanceof PDFDict ? sub : env.res, env.cache, env.depth + 1));
+    xi.info = {hasText: r.units.some(u => u.kind === 'text' || (u.kind === 'form' && u.info.hasText)),
+      allMarked: r.units.every(u => u.mk !== 'none' || (u.kind === 'form' && u.info.allMarked)), hasMcid: r.maxMcid >= 0};
+  }catch(e){}
+  return xi.info;
+}
+const mul = (a, b) => [a[0]*b[0]+a[1]*b[2], a[0]*b[1]+a[1]*b[3], a[2]*b[0]+a[3]*b[2], a[2]*b[1]+a[3]*b[3], a[4]*b[0]+a[5]*b[2]+b[4], a[4]*b[1]+a[5]*b[3]+b[5]];
+const PATH_CONS = new Set(['m','l','c','v','y','h','re']), PATH_PAINT = new Set(['S','s','f','F','f*','B','B*','b','b*']);
+function strBytes(a){ if(!a) return ''; if(a.t === 'str') return a.v; if(a.t === 'arr') return a.v.filter(x => x.t === 'str').map(x => x.v).join(''); return ''; }
+function scanOps(ops, env){
+  let ctm = [1,0,0,1,0,0], tm = ctm.slice(), tlm = ctm.slice(), font = null, fsize = 0, TL = 0, Tr = 0, Tc = 0, Tw = 0, Th = 1, inBT = false;
+  const gs = [], mc = [], units = [], pairs = {}, mcidText = {}, viol = {artInTag:[], tagInArt:[]};
+  let pathStart = -1, tu = null, maxMcid = -1, lastMcid = null;
+  const marking = () => { let t = false, a = false; for(const m of mc){ if(m.kind === 'mcid') t = true; else if(m.kind === 'artifact') a = true; } return t ? 'tagged' : a ? 'artifact' : 'none'; };
+  const curMcid = () => { for(let i=mc.length-1;i>=0;i--) if(mc[i].kind === 'mcid') return mc[i].mcid; return null; };
+  const close = () => { if(tu){ units.push(tu); tu = null; } };
+  const bboxOf = m => { const pts = [[0,0],[1,0],[0,1],[1,1]].map(([x,y]) => [m[0]*x+m[2]*y+m[4], m[1]*x+m[3]*y+m[5]]); const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
+  for(let k=0;k<ops.length;k++){
+    const o = ops[k], op = o.op, a = o.args; const num = i => (a[i] && a[i].t === 'num') ? a[i].v : 0;
+    switch(op){
+      case 'q': gs.push({ctm: ctm.slice(), font, fsize, TL, Tr, Tc, Tw, Th}); break;
+      case 'Q': { const g = gs.pop(); if(g){ ctm = g.ctm; font = g.font; fsize = g.fsize; TL = g.TL; Tr = g.Tr; Tc = g.Tc; Tw = g.Tw; Th = g.Th; } break; }
+      case 'Tc': Tc = num(0); break;
+      case 'Tw': Tw = num(0); break;
+      case 'Tz': Th = num(0) / 100; break;
+      case 'cm': ctm = mul([num(0),num(1),num(2),num(3),num(4),num(5)], ctm); break;
+      case 'BT': inBT = true; tm = [1,0,0,1,0,0]; tlm = tm.slice(); break;
+      case 'ET': close(); inBT = false; break;
+      case 'Tf': font = a[0] && a[0].t === 'name' ? a[0].v : null; fsize = num(1); break;
+      case 'TL': TL = num(0); break;
+      case 'Tr': Tr = num(0); break;
+      case 'Td': tlm = mul([1,0,0,1,num(0),num(1)], tlm); tm = tlm.slice(); break;
+      case 'TD': TL = -num(1); tlm = mul([1,0,0,1,num(0),num(1)], tlm); tm = tlm.slice(); break;
+      case 'Tm': tlm = [num(0),num(1),num(2),num(3),num(4),num(5)]; tm = tlm.slice(); break;
+      case 'T*': tlm = mul([1,0,0,1,0,-TL], tlm); tm = tlm.slice(); break;
+      case 'BMC': case 'BDC': {
+        close(); const tag = a[0] && a[0].t === 'name' ? a[0].v : ''; let mcid = null;
+        if(op === 'BDC'){ const p = a[1]; if(p && p.t === 'dict'){ const m = /\/MCID\s+(\d+)/.exec(p.raw); if(m) mcid = +m[1]; } else if(p && p.t === 'name') mcid = env.propMcid(p.v); }
+        const kind = tag === 'Artifact' ? 'artifact' : (mcid != null ? 'mcid' : 'other');
+        if(kind === 'artifact' && mc.some(m => m.kind === 'mcid')) viol.artInTag.push(k);
+        if(kind === 'mcid' && mc.some(m => m.kind === 'artifact')) viol.tagInArt.push(k);
+        if(mcid != null){ maxMcid = Math.max(maxMcid, mcid); lastMcid = mcid; }
+        mc.push({kind, mcid, op:k}); break; }
+      case 'EMC': { close(); const m = mc.pop(); if(m) pairs[m.op] = k; break; }
+      case 'Tj': case 'TJ': case "'": case '"': {
+        if(op === '"'){ Tw = num(0); Tc = num(1); }
+        if(op === "'" || op === '"'){ tlm = mul([1,0,0,1,0,-TL], tlm); tm = tlm.slice(); }
+        const bytes = strBytes(op === 'TJ' ? a[0] : a[a.length-1]); const F = env.fonts[font];
+        if(F && F.used){ if(F.two){ for(let i=0;i+1<bytes.length;i+=2) F.used.add((bytes.charCodeAt(i)<<8) | bytes.charCodeAt(i+1)); } else for(let i=0;i<bytes.length;i++) F.used.add(bytes.charCodeAt(i)); }
+        const text = F ? F.dec(bytes) : ''; const trm = mul(tm, ctm);
+        const size = Math.abs(fsize) * (Math.hypot(trm[2], trm[3]) || 1); const x = trm[4], y = trm[5]; const mk = marking();
+        let adv = 0;
+        if(F){ if(op === 'TJ' && a[0] && a[0].t === 'arr'){ for(const el of a[0].v){ if(el.t === 'str'){ const m = F.width(el.v); adv += (m.w/1000*fsize + Tc*m.n + Tw*m.sp) * Th; } else if(el.t === 'num') adv -= el.v/1000*fsize*Th; } }
+          else { const m = F.width(bytes); adv = (m.w/1000*fsize + Tc*m.n + Tw*m.sp) * Th; } }
+        const wUser = Math.max(0, adv * Math.hypot(trm[0], trm[1]));
+        const part = {k, x, y, w: wUser, size, text, font: F ? F.base : '', bold: F ? F.bold : false};
+        tm = mul([1,0,0,1,adv,0], tm);
+        if(mk === 'tagged'){ const id = curMcid(); if(id != null) mcidText[id] = (mcidText[id] || '') + text; }
+        if(tu && tu.mk === mk && Math.abs(tu.y - y) < Math.max(1, size*0.4)){ tu.end = k; tu.text += text; tu.size = Math.max(tu.size, size); tu.parts.push(part); tu.x = Math.min(tu.x, x); tu.x1 = Math.max(tu.x1, x + wUser); }
+        else { close(); tu = {kind:'text', start:k, end:k, x, x1: x + wUser, y, size, bold: F ? F.bold : false, font: F ? F.base : '', decOk: F ? F.ok : false, text, mk, invisible: Tr === 3 || Tr === 7, prevMcid: lastMcid, parts:[part]}; }
+        break; }
+      case 'Do': { const xi = env.xobj[a[0] && a[0].v]; if(!xi) break;
+        if(xi.type === 'Image') units.push({kind:'image', start:k, end:k, mk: marking(), bbox: bboxOf(ctm), prevMcid: lastMcid, ref: xi.ref});
+        else if(xi.type === 'Form'){ const info = formInfo(env, xi); if(info.hasMcid) maxMcid = Math.max(maxMcid, -1); units.push({kind:'form', start:k, end:k, mk: marking(), info, y: ctm[5], x: ctm[4], size: 10, prevMcid: lastMcid}); }
+        break; }
+      case 'BI': units.push({kind:'image', start:k, end:k, mk: marking(), bbox: bboxOf(ctm), prevMcid: lastMcid}); break;
+      case 'sh': units.push({kind:'shade', start:k, end:k, mk: marking()}); break;
+      case 'n': pathStart = -1; break;
+      default:
+        if(PATH_CONS.has(op)){ if(pathStart < 0) pathStart = k; }
+        else if(PATH_PAINT.has(op)){ units.push({kind:'path', start: pathStart < 0 ? k : pathStart, end:k, mk: marking()}); pathStart = -1; }
+    }
+  }
+  close();
+  return {units, viol, pairs, mcidText, maxMcid};
+}
+
+/* =========================================================
+   Structure tree reading
+   ========================================================= */
+function walkStruct(ctx, root, mcidText, pageIdx){
+  const L = x => ctx.lookup(x);
+  const roleMap = {}; const rm = L(root.get(N('RoleMap')));
+  if(rm instanceof PDFDict) for(const [k,v] of rm.entries()) roleMap[nameStr(k)] = nameStr(L(v));
+  const out = {count:0, figures:[], headings:0, roles:{}, tree:[], headSeq:[], formulas:0, formulasNoAlt:0, tables:0, viol:[]}; const seen = new Set(); let nodes = 0;
+  const RULES = {L:['LI','Caption','L'], TR:['TH','TD'], Table:['TR','THead','TBody','TFoot','Caption'], THead:['TR'], TBody:['TR'], TFoot:['TR'], LI:['Lbl','LBody']};
+  const NEEDS = {LI:['L'], Lbl:['LI'], LBody:['LI'], TR:['Table','THead','TBody','TFoot'], TH:['TR'], TD:['TR']};
+  const addText = (h, pg, id) => { if(h && h.t.length < 140 && mcidText && mcidText[pg] && mcidText[pg][id]){ const v = mcidText[pg][id]; h.t += (h.t && !/\s$/.test(h.t) && !/^\s/.test(v) && h.r !== 'Formula' ? ' ' : '') + v; } };
+  const visit = (node, d, pg, holder, parentRole) => {
+    if(d > 300 || !node) return;
+    if(node instanceof PDFRef){ const k = node.toString(); if(seen.has(k)) return; seen.add(k); node = L(node); }
+    if(node instanceof PDFArray){ for(let i=0;i<node.size();i++) visit(node.get(i), d+1, pg, holder, parentRole); return; }
+    if(node instanceof PDFNumber){ addText(holder, pg, node.asNumber()); return; }
+    if(!(node instanceof PDFDict)) return;
+    const type = nameStr(node.get(N('Type')));
+    if(type === 'MCR'){ const p = node.get(N('Pg')); addText(holder, p instanceof PDFRef ? p.toString() : pg, numOf(L(node.get(N('MCID'))))); return; }
+    if(type === 'OBJR'){ if(holder) holder.objr = (holder.objr || 0) + 1; return; }
+    const s = node.get(N('S'));
+    if(s instanceof PDFName){
+      let role = nameStr(s), std = roleMap[role] || role; if(roleMap[std]) std = roleMap[std];
+      out.count++; out.roles[std] = (out.roles[std] || 0) + 1;
+      const p = node.get(N('Pg')); const myPg = p instanceof PDFRef ? p.toString() : pg;
+      const alt = txt(L(node.get(N('Alt')))), actual = txt(L(node.get(N('ActualText'))));
+      if(std === 'Figure') out.figures.push({dict:node, alt, actual, page: (myPg && pageIdx.get(myPg)) || 1});
+      if(/^H[1-6]?$/.test(std)){ out.headings++; const m = /^H([1-6])$/.exec(std); if(m) out.headSeq.push(+m[1]); }
+      if(std === 'Formula'){ out.formulas++; if(!alt && !actual) out.formulasNoAlt++; }
+      if(std === 'Table') out.tables++;
+      if(parentRole && RULES[parentRole] && !RULES[parentRole].includes(std)) out.viol.push(`${std} inside ${parentRole}`);
+      if(NEEDS[std] && !NEEDS[std].includes(parentRole || '')) out.viol.push(`${std} outside ${NEEDS[std].join('/')}`);
+      let tn = null; if(nodes < 600){ tn = {r:std, t:'', kids:[], alt: alt || actual, dict: node}; nodes++; (holder ? holder.kids : out.tree).push(tn); }
+      const K = node.get(N('K')); if(K) visit(K, d+1, myPg, tn || holder, std);
+    }
+  };
+  visit(root.get(N('K')), 0, null, null, null);
+  const hasTH = n => n.r === 'TH' || n.kids.some(hasTH); const walkT = ns => ns.forEach(n => { if(n.r === 'Table'){ out.tablesSeen = (out.tablesSeen || 0) + 1; if(!hasTH(n)) out.tablesNoTH = (out.tablesNoTH || 0) + 1; } walkT(n.kids); }); walkT(out.tree);
+  const walkM = ns => ns.forEach(n => { if((n.r === 'P' || n.r === 'Span') && !n.kids.length && n.t && mathLike(n.t, [])) out.mathInP = (out.mathInP || 0) + 1; walkM(n.kids); }); walkM(out.tree);
+  return out;
+}
+
+/* =========================================================
+   Analysis
+   ========================================================= */
+function allFonts(ctx, pages){
+  const seen = new Set(), out = [];
+  const visit = (res, d) => { res = ctx.lookup(res); if(!(res instanceof PDFDict) || d > 4) return;
+    const fd = ctx.lookup(res.get(N('Font')));
+    if(fd instanceof PDFDict) for(const [, v] of fd.entries()){ const k = v instanceof PDFRef ? v.toString() : null; if(k && seen.has(k)) continue; if(k) seen.add(k); const f = ctx.lookup(v); if(f instanceof PDFDict) out.push({f, key: k}); }
+    const xo = ctx.lookup(res.get(N('XObject')));
+    if(xo instanceof PDFDict) for(const [, v] of xo.entries()){ const k = 'x' + v.toString(); if(seen.has(k)) continue; seen.add(k); const x = ctx.lookup(v); if(x && x.dict && nameStr(x.dict.get(N('Subtype'))) === 'Form') visit(x.dict.get(N('Resources')), d+1); } };
+  pages.forEach(p => { try{ visit(p.node.Resources(), 0); }catch(e){} });
+  const apRes = st => { st = ctx.lookup(st); if(st && st.dict) visit(st.dict.get(N('Resources')), 1); else if(st instanceof PDFDict) for(const [, v] of st.entries()){ const x = ctx.lookup(v); if(x && x.dict) visit(x.dict.get(N('Resources')), 1); } };
+  pages.forEach(p => { try{ const ann = p.node.Annots(); if(!ann) return; for(let i=0;i<ann.size();i++){ const a = ctx.lookup(ann.get(i)); const ap = a instanceof PDFDict ? ctx.lookup(a.get(N('AP'))) : null; if(ap instanceof PDFDict) ['N','R','D'].forEach(k => apRes(ap.get(N(k)))); } }catch(e){} });
+  try{ const root = ctx.lookup(ctx.trailerInfo.Root); const af = root && ctx.lookup(root.get(N('AcroForm'))); if(af instanceof PDFDict) visit(af.get(N('DR')), 1); }catch(e){}
+  return out;
+}
+const isEmbedded = (ctx, f) => { if(nameStr(f.get(N('Subtype'))) === 'Type3') return true; const d = fontDescriptor(ctx, f); return !!d && ['FontFile','FontFile2','FontFile3'].some(k => d.has(N(k))); };
+const SUBST = [[/^(Arial|Helvetica)(?!.*(Narrow|Black|Rounded))/i, 'LiberationSans', 0], [/^(TimesNewRoman|Times)/i, 'LiberationSerif', 2], [/^(CourierNew|Courier)/i, 'LiberationMono', 1], [/^Calibri/i, 'Carlito', 0], [/^Cambria(?!.*Math)/i, 'Caladea', 2]];
+function substituteFor(ctx, f){
+  const sub = nameStr(f.get(N('Subtype'))); if(!['Type1','TrueType','MMType1'].includes(sub) || isEmbedded(ctx, f)) return null;
+  const base = nameStr(f.get(N('BaseFont'))).replace(/^[A-Z]{6}\+/, '').replace(/\s+/g, '');
+  const hit = SUBST.find(([re]) => re.test(base)); if(!hit) return null;
+  const d = fontDescriptor(ctx, f); const flags = d ? (numOf(ctx.lookup(d.get(N('Flags')))) || 0) : 0;
+  const bold = /bold|black|heavy|semibold|demi/i.test(base) || !!(flags & (1<<18)); const italic = /italic|oblique/i.test(base) || !!(flags & 64);
+  return {family: hit[1], kind: hit[2], bold, italic, file: `${hit[1]}-${bold && italic ? 'BoldItalic' : bold ? 'Bold' : italic ? 'Italic' : 'Regular'}.ttf`};
+}
+function fontInfo(ctx, pages, cache){
+  return allFonts(ctx, pages).map(({f, key}) => {
+    const sub = nameStr(f.get(N('Subtype'))); const base = (nameStr(f.get(N('BaseFont'))) || sub).replace(/^[A-Z]{6}\+/, '');
+    let uni = 'ok', badCount = 0; try{ const used = key && cache && cache.get(key) ? cache.get(key).used : null; const ev = uniEval(ctx, f, used); uni = ev.status; badCount = ev.bad.length; }catch(e){}
+    let subst = null; try{ subst = substituteFor(ctx, f); }catch(e){}
+    return {base, embedded: isEmbedded(ctx, f), uni, badCount, subst};
+  });
+}
+async function textScan(bytes){
+  try{
+    const pdf = await pdfjsLib.getDocument({data: bytes.slice(), isEvalSupported:false}).promise;
+    const n = Math.min(pdf.numPages, 30); const empty = []; let guess = '', sampleText = '';
+    for(let i=1;i<=n;i++){
+      const p = await pdf.getPage(i); const tc = await p.getTextContent();
+      const s = tc.items.map(t => t.str).join(' ').replace(/\s+/g, ' ').trim();
+      if(s.length < 20) empty.push(i);
+      if(i === 1){ let best = null; for(const t of tc.items.slice(0, 80)){ const h = Math.abs(t.transform[3]); if(t.str.trim().length > 3 && (!best || h > best.h)) best = {h, s:t.str.trim()}; } guess = best ? best.s : ''; }
+      if(sampleText.length < 4000) sampleText += `[Page ${i}] ${s}\n`;
+    }
+    return {pdf, scanned:n, total:pdf.numPages, empty, guess, sampleText};
+  }catch(e){ return {error:e.message, empty:[], scanned:0, total:0, guess:'', sampleText:''}; }
+}
+async function analyze(bytes, text){
+  const doc = await PDFDocument.load(bytes, {ignoreEncryption:true, updateMetadata:false});
+  const ctx = doc.context, cat = doc.catalog, L = x => ctx.lookup(x);
+  const pages = doc.getPages(); const pageIdx = new Map(pages.map((p,i) => [p.ref.toString(), i+1]));
+  const a = {encrypted: doc.isEncrypted, pages: pages.length, size: bytes.byteLength};
+  a.version = (new TextDecoder().decode(bytes.slice(0, 12)).match(/%PDF-(\d\.\d)/) || [])[1] || '?';
+  try{ a.title = (doc.getTitle() || '').trim(); }catch(e){ a.title = ''; }
+  try{ a.producer = doc.getProducer() || doc.getCreator() || ''; }catch(e){ a.producer = ''; }
+  const mi = L(cat.get(N('MarkInfo'))); a.marked = mi instanceof PDFDict && isTrue(L(mi.get(N('Marked'))));
+  const vp = L(cat.get(N('ViewerPreferences'))); a.ddt = vp instanceof PDFDict && isTrue(L(vp.get(N('DisplayDocTitle'))));
+  a.lang = txt(L(cat.get(N('Lang'))));
+  const md = L(cat.get(N('Metadata'))); a.xmp = md ? streamText(md) : '';
+  a.pdfua = /pdfuaid:part\s*(=\s*["']1["']|>\s*1\s*<)/.test(a.xmp);
+  const ol = L(cat.get(N('Outlines'))); a.outlines = ol instanceof PDFDict && !!ol.get(N('First'));
+  a.images = 0; a.annotPagesNoTabs = 0; a.links = 0; a.linksNoDesc = 0; a.widgets = 0; a.widgetsNoName = 0; a.annotsTotal = 0; a.annotsUntagged = 0; a.mathLines = 0;
+  a.content = {untagged:0, kinds:{text:0, path:0, image:0, form:0, shade:0}, pagesUntagged:0, artInTag:0, tagInArt:0, unreadable:0, scannedPages:Math.min(pages.length, 150)};
+  const mcidText = {}; const cache = new Map();
+  pages.forEach((p, pi) => {
+    try{ const xo = L(p.node.Resources().get(N('XObject'))); if(xo instanceof PDFDict) for(const [, v] of xo.entries()){ const x = L(v); if(x && x.dict && nameStr(x.dict.get(N('Subtype'))) === 'Image') a.images++; } }catch(e){}
+    const ann = p.node.Annots(); const cnt = ann ? ann.size() : 0;
+    if(cnt && nameStr(p.node.get(N('Tabs'))) !== 'S') a.annotPagesNoTabs++;
+    for(let i=0;i<cnt;i++){ const an = L(ann.get(i)); if(!(an instanceof PDFDict)) continue; const sub = nameStr(an.get(N('Subtype')));
+      if(sub === 'Link'){ a.links++; if(!txt(L(an.get(N('Contents'))))) a.linksNoDesc++; }
+      if(sub === 'Widget'){ a.widgets++; if(!txt(L(fieldOf(ctx, an).get(N('TU'))))) a.widgetsNoName++; }
+      if(!['Popup','PrinterMark','TrapNet'].includes(sub)){ a.annotsTotal++; if(an.get(N('StructParent')) == null) a.annotsUntagged++; } }
+    if(pi >= 150) return;
+    try{
+      const r = scanOps(parseContent(pageContent(ctx, p)), pageEnv(ctx, p.node.Resources(), cache, 0));
+      const un = r.units.filter(u => u.mk === 'none' && !(u.kind === 'form' && u.info.allMarked));
+      if(un.length){ a.content.pagesUntagged++; a.content.untagged += un.length; un.forEach(u => a.content.kinds[u.kind]++); }
+      a.mathLines += r.units.filter(u => u.kind === 'text' && u.mk === 'none' && mathLike(u.text, [u.font])).length;
+      a.content.artInTag += r.viol.artInTag.length; a.content.tagInArt += r.viol.tagInArt.length;
+      mcidText[p.ref.toString()] = r.mcidText;
+    }catch(e){ a.content.unreadable++; }
+  });
+  const root = L(cat.get(N('StructTreeRoot')));
+  a.struct = root instanceof PDFDict ? walkStruct(ctx, root, mcidText, pageIdx) : null;
+  a.fonts = fontInfo(ctx, pages, cache);
+  a.text = text || await textScan(bytes);
+  a.checks = buildChecks(a);
+  return a;
+}
+
+function buildChecks(a){
+  const C = []; const add = o => C.push(o); const st = a.struct; const tagged = st && st.count;
+  const viaTags = label => a.encrypted ? {kind:'next', label:'Needs owner password'} : {kind:'auto', via:'tags', label: label || 'Auto-tag document'};
+  // Document
+  add({id:'encrypt', group:'Document', title:'Security lets assistive technology read the file', ref:'Matterhorn 26-001', status:a.encrypted?'fail':'pass',
+    detail:a.encrypted?'The file is encrypted. Remove the restriction in the source application, then check it again.':'No encryption blocks screen readers.', fix:a.encrypted?{kind:'next', label:'Needs owner password'}:null});
+  add({id:'title', group:'Document', title:'Document title is set', ref:'Matterhorn 06-003 · WCAG 2.4.2', status:a.title?'pass':'fail',
+    detail:a.title?`Title: “${a.title}”`:'Screen readers announce the file name instead of a meaningful title.', fix:{kind:'title'}});
+  add({id:'ddt', group:'Document', title:'Title shows in the window bar', ref:'Matterhorn 07-001', status:a.ddt?'pass':'fail',
+    detail:a.ddt?'DisplayDocTitle is on.':'Viewers show the file name. DisplayDocTitle must be true.', fix:{kind:'auto'}});
+  add({id:'lang', group:'Document', title:'Document language is declared', ref:'Matterhorn 11-006 · WCAG 3.1.1', status:a.lang?'pass':'fail',
+    detail:a.lang?`Language: ${a.lang}`:'Without a language, screen readers may pronounce the text with the wrong voice.', fix:{kind:'lang'}});
+  add({id:'pdfua', group:'Document', title:'PDF/UA identifier in metadata', ref:'Matterhorn 06-002', status:a.pdfua?'pass':'fail',
+    detail:a.pdfua?'XMP declares PDF/UA-1 (pdfuaid:part = 1).':'The XMP metadata does not declare PDF/UA conformance.', fix:tagged?{kind:'auto'}:viaTags('Auto-tag, then add')});
+  // Structure
+  add({id:'tags', group:'Structure', title:'Document has a tag structure', ref:'Matterhorn 01-005 · WCAG 1.3.1', status:tagged?'pass':'fail',
+    detail:tagged?`${st.count} structure elements (${Object.entries(st.roles).slice(0,7).map(([k,v])=>`${k} ${v}`).join(', ')}).`:'No tags. Screen readers cannot tell headings, paragraphs, lists and figures apart.', fix:tagged?null:viaTags()});
+  add({id:'marked', group:'Structure', title:'File is flagged as tagged', ref:'Matterhorn 06-001', status:a.marked?'pass':'fail',
+    detail:a.marked?'MarkInfo /Marked is true.':'MarkInfo /Marked is missing, so readers may ignore the tags.', fix:tagged?{kind:'auto'}:viaTags()});
+  add({id:'headings', group:'Structure', title:'Headings are tagged', ref:'Matterhorn 14-002 · WCAG 2.4.6', status:tagged&&st.headings?'pass':(tagged?'warn':'fail'),
+    detail:tagged&&st.headings?`${st.headings} heading tags found.`:(tagged?'No heading tags. Check that titles are marked as H1–H6.':'Cannot check without tags. Auto-tagging detects headings from font size and weight.'), fix:tagged&&st.headings?null:(tagged?{kind:'next', label:'Heading review'}:viaTags())});
+  let hs = 0; if(tagged){ let last = 0; st.headSeq.forEach(lv => { if(lv > last + 1) hs++; last = lv; }); }
+  add({id:'headlevels', group:'Structure', title:'Heading levels are not skipped', ref:'Matterhorn 14-003 · WCAG 1.3.1', status: hs ? 'fail' : 'pass',
+    detail: tagged ? (hs ? `${hs} heading(s) skip a level or the first heading is not H1 (sequence: ${st.headSeq.slice(0, 12).map(l => 'H' + l).join(' ')}${st.headSeq.length > 12 ? ' …' : ''}).` : (st.headSeq.length ? `${st.headSeq.length} headings in a valid sequence.` : 'No numbered headings.')) : 'Checked after tagging. Auto-tagging numbers headings without gaps.',
+    fix: hs ? {kind:'auto', label:'Renumber headings'} : null});
+  const fIssues = tagged ? st.formulasNoAlt + (st.mathInP || 0) : 0;
+  add({id:'formulas', group:'Structure', title:'Mathematics is tagged as Formula with alternate text', ref:'Matterhorn 17-002 · WCAG 1.1.1, 1.3.1', status: tagged ? (fIssues ? 'fail' : 'pass') : (a.mathLines ? 'fail' : 'pass'),
+    detail: tagged ? (fIssues ? [st.formulasNoAlt ? `${st.formulasNoAlt} Formula tag(s) have no alternate text` : '', st.mathInP ? `${st.mathInP} equation(s) are tagged as ordinary text` : ''].filter(Boolean).join('; ') + '.' : (st.formulas ? `${st.formulas} formula(s) tagged with spoken alternate text.` : 'No mathematical content found in the tag tree.'))
+      : (a.mathLines ? `${a.mathLines} line(s) look like equations. Auto-tagging tags them as Formula with a spoken description (e.g. "x squared plus y squared").` : 'No mathematical content detected.'),
+    fix: tagged ? (fIssues ? {kind:'auto', label:'Tag formulas'} : null) : (a.mathLines ? viaTags('Auto-tag formulas') : null)});
+  add({id:'tables', group:'Structure', title:'Tables have header cells', ref:'Matterhorn 15-003 · WCAG 1.3.1', status: tagged && st.tablesNoTH ? 'warn' : 'pass',
+    detail: tagged ? (st.tables ? (st.tablesNoTH ? `${st.tablesNoTH} of ${st.tables} table(s) have no TH cells. Mark the header row or column.` : `${st.tables} table(s) with header cells.`) : 'No tables in the tag tree.') : 'Checked after tagging. Auto-tagging detects tables from column alignment and marks the first row as headers.',
+    fix: tagged && st.tablesNoTH ? {kind:'next', label:'Header review'} : null});
+  const vu = tagged ? [...new Set(st.viol)] : [];
+  add({id:'treerules', group:'Structure', title:'Tag tree follows nesting rules', ref:'Matterhorn 09-004 · PDF/UA 7.1', status: vu.length ? 'warn' : 'pass',
+    detail: tagged ? (vu.length ? `${st.viol.length} misplaced element(s): ${vu.slice(0, 5).join('; ')}${vu.length > 5 ? '…' : ''}.` : 'Lists, list items, tables and rows contain only the elements they allow.') : 'Checked after tagging.',
+    fix: vu.length ? {kind:'next', label:'Manual restructure'} : null});
+  // Content
+  const c = a.content; const k = c.kinds;
+  const kindList = [k.text&&`${k.text} text line(s)`, k.path&&`${k.path} vector graphic(s)`, k.image&&`${k.image} image(s)`, k.form&&`${k.form} form object(s)`, k.shade&&`${k.shade} shading(s)`].filter(Boolean).join(', ');
+  add({id:'untagged', group:'Content', title:'Tagged content and artifacts', ref:'Matterhorn 01-005 · PDF/UA 7.1', status:c.untagged?'fail':'pass',
+    detail:c.untagged?`${kindList} on ${c.pagesUntagged} page(s) are neither tagged nor marked as artifacts.`:'Every piece of content is either tagged or marked as an artifact.',
+    fix:c.untagged?(tagged?{kind:'auto', label:'Tag untagged content'}:viaTags()):null});
+  add({id:'artintag', group:'Content', title:'Artifacts inside tagged content', ref:'Matterhorn 01-003', status:c.artInTag?'fail':'pass',
+    detail:c.artInTag?`${c.artInTag} artifact sequence(s) sit inside tagged content.`:'No artifacts are nested inside tagged content.', fix:c.artInTag?{kind:'auto', label:'Fix nesting'}:null});
+  add({id:'tagart', group:'Content', title:'Tagged content inside artifacts', ref:'Matterhorn 01-004', status:c.tagInArt?'fail':'pass',
+    detail:c.tagInArt?`${c.tagInArt} tagged sequence(s) sit inside artifacts.`:'No tagged content is nested inside artifacts.', fix:c.tagInArt?{kind:'auto', label:'Fix nesting'}:null});
+  const badUni = a.fonts.filter(f => f.uni !== 'ok'); const nBad = badUni.reduce((s, f) => s + f.badCount, 0);
+  add({id:'unicode', group:'Content', title:'Mapping of characters to Unicode', ref:'Matterhorn 10-001 · PDF/UA 7.21.7', status:badUni.length?'fail':'pass',
+    detail:badUni.length?`${nBad} character code(s) in ${badUni.length} font(s) have no valid Unicode mapping: ${[...new Set(badUni.map(f=>f.base))].join(', ')}.${S.uniTried ? ' The repair could not identify these glyphs from the font data.' : ''}`:(a.fonts.length?`Every character used in ${a.fonts.length} font(s) maps to Unicode.`:'No fonts used.'),
+    fix:badUni.length?(a.encrypted?{kind:'next', label:'Needs owner password'}:S.uniTried?{kind:'next', label:'Glyph recognition'}:{kind:'auto', label:'Repair Unicode maps'}):null});
+  if(!tagged && a.images) add({id:'alts', group:'Content', title:'Images have alternative text', ref:'Matterhorn 13-004 · WCAG 1.1.1', status:'fail', detail:`${a.images} image(s) found, but there are no Figure tags to hold alt text.`, fix:viaTags('Auto-tag figures')});
+  else if(tagged && st.figures.length){ const miss = st.figures.filter(f => !f.alt && !f.actual).length;
+    add({id:'alts', group:'Content', title:'Images have alternative text', ref:'Matterhorn 13-004 · WCAG 1.1.1', status:miss?'fail':'pass', detail:miss?`${miss} of ${st.figures.length} figures have no alt text.`:`All ${st.figures.length} figures have alt text.`, fix:miss?{kind:'alts'}:null}); }
+  else add({id:'alts', group:'Content', title:'Images have alternative text', ref:'Matterhorn 13-004 · WCAG 1.1.1', status:'pass', detail:'No images or figures found.', fix:null});
+  const t = a.text || {}; const scanned = t.empty ? t.empty.length : 0;
+  add({id:'ocr', group:'Content', title:'Pages contain real text', ref:'WCAG 1.4.5', status:t.error?'warn':(scanned?(a.images?'fail':'warn'):'pass'),
+    detail:t.error?'Text could not be extracted for checking.':(scanned?`${scanned} page(s) have no text layer (${t.empty.slice(0,8).join(', ')}${t.empty.length>8?'…':''}). They are likely scanned images.`:`Text found on all ${t.scanned} checked page(s)${t.total>t.scanned?` (first ${t.scanned} of ${t.total})`:''}.`),
+    fix:scanned&&a.images?(a.encrypted?{kind:'next', label:'Needs owner password'}:{kind:'auto', label:'Run OCR'}):null});
+  const unemb = a.fonts.filter(f => !f.embedded); const canEmb = unemb.filter(f => f.subst); const noSub = unemb.filter(f => !f.subst);
+  add({id:'fonts', group:'Content', title:'All fonts are embedded', ref:'Matterhorn 31-009 · PDF/UA 7.21.4', status:unemb.length?'fail':'pass',
+    detail:unemb.length?`Not embedded: ${[...new Set(unemb.map(f=>f.base))].join(', ')}.${canEmb.length ? ` ${canEmb.length} can be embedded with metric-compatible fonts (${[...new Set(canEmb.map(f=>f.subst.family))].join(', ')}), so the layout does not change.` : ''}${noSub.length && canEmb.length ? ` No compatible font is available for ${[...new Set(noSub.map(f=>f.base))].join(', ')}.` : ''}`:(a.fonts.length?`${a.fonts.length} font(s), all embedded.`:'No fonts used.'),
+    fix:canEmb.length?(a.encrypted?{kind:'next', label:'Needs owner password'}:{kind:'auto', label:'Embed fonts'}):(unemb.length?{kind:'next', label:'Font not in substitute library'}:null)});
+  // Forms and annotations
+  add({id:'fields', group:'Forms', title:'Form fields have accessible names', ref:'Matterhorn 28-005 · WCAG 1.3.1, 4.1.2', status: a.widgetsNoName ? 'fail' : 'pass',
+    detail: a.widgets ? (a.widgetsNoName ? `${a.widgetsNoName} of ${a.widgets} field(s) have no name (TU). Screen readers announce only "edit text" or "check box".` : `All ${a.widgets} field(s) have names.`) : 'No form fields.',
+    fix: a.widgetsNoName ? (a.encrypted ? {kind:'next', label:'Needs owner password'} : {kind:'auto', label:'Name fields from labels'}) : null});
+  add({id:'annots', group:'Forms', title:'Fields, links and annotations are tagged', ref:'Matterhorn 28-010 · PDF/UA 7.18.1', status: tagged ? (a.annotsUntagged ? 'fail' : 'pass') : (a.annotsTotal ? 'fail' : 'pass'),
+    detail: a.annotsTotal ? (tagged ? (a.annotsUntagged ? `${a.annotsUntagged} of ${a.annotsTotal} annotation(s) are missing from the tag tree.` : `All ${a.annotsTotal} annotation(s) are in Form, Link or Annot tags.`) : `${a.annotsTotal} annotation(s) need Form, Link or Annot tags.`) : 'No form fields, links or annotations.',
+    fix: a.annotsTotal && (tagged ? a.annotsUntagged : true) ? (tagged ? {kind:'auto', label:'Tag annotations'} : viaTags('Auto-tag fields and links')) : null});
+  // Navigation
+  add({id:'tabs', group:'Navigation', title:'Tab order follows the structure', ref:'Matterhorn 28-002 · WCAG 2.4.3', status:a.annotPagesNoTabs?'fail':'pass',
+    detail:a.annotPagesNoTabs?`${a.annotPagesNoTabs} page(s) with links or fields lack /Tabs /S.`:'Every page with interactive elements uses structure tab order.', fix:a.annotPagesNoTabs?{kind:'auto'}:null});
+  add({id:'links', group:'Navigation', title:'Links have a description', ref:'Matterhorn 28-004 · WCAG 2.4.4', status:a.linksNoDesc?'fail':'pass',
+    detail:a.links?(a.linksNoDesc?`${a.linksNoDesc} of ${a.links} links have no description.`:`All ${a.links} links are described.`):'No links found.', fix:a.linksNoDesc?{kind:'auto'}:null});
+  add({id:'outline', group:'Navigation', title:'Bookmarks for long documents', ref:'WCAG 2.4.5', status:a.pages > 20 && !a.outlines ? 'warn' : 'pass',
+    detail:a.pages > 20 ? (a.outlines?'Bookmarks are present.':`${a.pages} pages and no bookmarks. Add bookmarks from the headings.`) : (a.outlines?'Bookmarks are present.':`Not required for a ${a.pages}-page document.`), fix:a.pages > 20 && !a.outlines ? {kind:'next', label:'Bookmarks from headings'} : null});
+  return C;
+}
+const score = cs => Math.round(cs.reduce((s,c) => s + (c.status==='pass'?1:c.status==='warn'?.5:0), 0) / cs.length * 100);
+
+/* =========================================================
+   Fix: embed missing fonts with metric-compatible substitutes
+   ========================================================= */
+const fontFileCache = new Map();
+function getFontFile(file){ if(!fontFileCache.has(file)) fontFileCache.set(file, fetch('fonts/' + file).then(r => r.ok ? r.arrayBuffer() : null).then(b => b && b.byteLength > 1000 ? new Uint8Array(b) : null).catch(() => null)); return fontFileCache.get(file); }
+async function embedFonts(doc){
+  const ctx = doc.context; const fk = await getFontkit(); const descCache = new Map(); let n = 0; const missing = [];
+  for(const {f} of allFonts(ctx, doc.getPages())){
+    const sb = substituteFor(ctx, f); if(!sb) continue;
+    const bytes = await getFontFile(sb.file); if(!bytes){ missing.push(sb.file); continue; }
+    let entry = descCache.get(sb.file);
+    if(!entry){
+      const tf = fk.create(bytes); const sc = 1000 / tf.unitsPerEm; const ps = tf.postscriptName || sb.file.replace('.ttf', '');
+      const bb = tf.bbox; const ff = ctx.register(ctx.flateStream(bytes, {Length1: bytes.length}));
+      const flags = 32 | (sb.italic ? 64 : 0) | (sb.kind === 2 ? 2 : 0) | (sb.kind === 1 ? 1 : 0);
+      const fd = ctx.register(ctx.obj({Type:'FontDescriptor', FontName: N(ps), Flags: flags, FontBBox: [bb.minX*sc, bb.minY*sc, bb.maxX*sc, bb.maxY*sc].map(Math.round), ItalicAngle: tf.italicAngle || 0,
+        Ascent: Math.round(tf.ascent*sc), Descent: Math.round(tf.descent*sc), CapHeight: Math.round((tf.capHeight || tf.ascent*0.7)*sc), XHeight: Math.round((tf.xHeight || tf.ascent*0.5)*sc), StemV: sb.bold ? 140 : 80, FontFile2: ff}));
+      entry = {tf, sc, ps, fd}; descCache.set(sb.file, entry);
+    }
+    const enc = ctx.lookup(f.get(N('Encoding')));
+    if(!enc || (enc instanceof PDFName && nameStr(enc) === 'StandardEncoding')) f.set(N('Encoding'), ctx.obj({Type:'Encoding', BaseEncoding:'WinAnsiEncoding', Differences:[39, 'quoteright', 96, 'quoteleft']}));
+    else if(enc instanceof PDFDict && (!enc.get(N('BaseEncoding')) || nameStr(ctx.lookup(enc.get(N('BaseEncoding')))) === 'StandardEncoding')) enc.set(N('BaseEncoding'), N('WinAnsiEncoding'));
+    const table = encodingTable(ctx, f); let first = -1, last = -1; const widths = [];
+    for(let c=0;c<256;c++){ const u = table[c]; if(u){ if(first < 0) first = c; last = c; } }
+    if(first < 0){ first = 32; last = 126; }
+    for(let c=first;c<=last;c++){ const u = table[c]; let w = 0; if(u){ const g = entry.tf.glyphForCodePoint(u.codePointAt(0)); w = Math.round((g ? g.advanceWidth : 0) * entry.sc); } widths.push(w); }
+    f.set(N('Subtype'), N('TrueType')); f.set(N('BaseFont'), N(entry.ps)); f.set(N('FontDescriptor'), entry.fd);
+    f.set(N('FirstChar'), ctx.obj(first)); f.set(N('LastChar'), ctx.obj(last)); f.set(N('Widths'), ctx.obj(widths));
+    const tuE = []; for(let c=first;c<=last;c++) if(table[c]) tuE.push([c, table[c]]); f.set(N('ToUnicode'), ctx.register(ctx.flateStream(buildCMap(tuE, 1))));
+    n++;
+  }
+  return {n, missing};
+}
+
+/* =========================================================
+   Fix: Unicode maps
+   ========================================================= */
+async function pdfjsFontMaps(bytes){
+  const out = new Map();
+  try{
+    const pdf = await pdfjsLib.getDocument({data: bytes.slice(), isEvalSupported:false, fontExtraProperties:true}).promise;
+    const n = Math.min(pdf.numPages, 40);
+    for(let i=1;i<=n;i++){
+      const p = await pdf.getPage(i); const ol = await p.getOperatorList();
+      for(let k=0;k<ol.fnArray.length;k++){
+        if(ol.fnArray[k] !== pdfjsLib.OPS.setFont) continue;
+        const id = ol.argsArray[k][0]; let fo = null; try{ fo = p.commonObjs.get(id); }catch(e){ fo = null; }
+        if(!fo || !fo.name || out.has(fo.name)) continue;
+        const tu = fo.toUnicode; const raw = tu && tu._map; let m = null;
+        if(Array.isArray(raw)){ m = new Map(); raw.forEach((v, c) => { if(typeof v === 'string' && v) m.set(c, v); }); }
+        else if(raw && typeof raw === 'object'){ m = new Map(); for(const c in raw) if(typeof raw[c] === 'string' && raw[c]) m.set(+c, raw[c]); }
+        if(m && m.size) out.set(fo.name, m);
+      }
+    }
+    try{ pdf.destroy(); }catch(e){}
+  }catch(e){}
+  return out;
+}
+function fixUnicode(doc, jsMaps){
+  const ctx = doc.context; const pages = doc.getPages(); const cache = new Map();
+  pages.forEach(p => { try{ scanOps(parseContent(pageContent(ctx, p)), pageEnv(ctx, p.node.Resources(), cache, 0)); }catch(e){} });
+  let fixed = 0, unresolved = 0; const badFonts = [];
+  for(const {f, key} of allFonts(ctx, pages)){
+    const used = key && cache.get(key) ? cache.get(key).used : new Set();
+    const ev = uniEval(ctx, f, used); if(ev.status === 'ok') continue;
+    const full = nameStr(f.get(N('BaseFont')));
+    const js = (jsMaps && (jsMaps.get(full) || jsMaps.get(ev.base))) || null; const prog = programMap(ctx, f);
+    const domain = ev.two ? new Set([...used, ...(ev.tu ? ev.tu.keys() : []), ...prog.keys()]) : new Set(Array.from({length:256}, (_, i) => i));
+    const entries = []; let miss = 0;
+    for(const c of domain){
+      let u = ev.tu ? ev.tu.get(c) : null; if(BAD_U(u)) u = null;
+      if(!u && ev.table && ev.table[c]) u = ev.table[c];
+      if(!u) u = prog.get(c) || null;
+      if(!u && js) u = js.get(c) || null;
+      if(!u && ev.symbolic) u = symTable(ev.base, c & 0xFF) || null;
+      if(u && ev.symbolic) u = normPUA(ev.base, u);
+      if(u && !BAD_U(u)) entries.push([c, u]); else if(used.has(c)) miss++;
+    }
+    if(entries.length){ entries.sort((a, b) => a[0] - b[0]); f.set(N('ToUnicode'), ctx.register(ctx.flateStream(buildCMap(entries, ev.two ? 2 : 1)))); fixed++; }
+    if(miss){ unresolved += miss; badFonts.push(ev.base); }
+  }
+  return {fixed, unresolved, fonts: badFonts};
+}
+
+/* =========================================================
+   Fix: auto-tagging for untagged documents
+   ========================================================= */
+const BULLET_RE = /^\s*(?:[•●○◦▪▫■□‣⁃∙·–*\uf0b7\uf0a7\uf076\uf0d8]\s*|-\s+|\(?\d{1,2}[.)]\s+|\(?[a-hA-H][.)]\s+)(?=\S)/;
+const normKey = t => t.replace(/\d+/g, '#').replace(/\s+/g, ' ').trim().toLowerCase();
+const isPageNum = t => /^\s*(page\s*)?#?\d{1,4}(\s*(of|\/)\s*\d{1,4})?\s*$/i.test(t);
+const CAPTION_RE = /^(fig(ure)?|chart|graph|diagram|image|photo|illustration|map|plate|exhibit)\.?\s*[\dIVX]+[a-z]?\s*[:.\-–—]?\s*/i;
+function rectOf(ctx, d){ const r = ctx.lookup(d.get(N('Rect'))); if(!(r instanceof PDFArray) || r.size() !== 4) return null; const v = [0,1,2,3].map(j => numOf(ctx.lookup(r.get(j))) || 0); return [Math.min(v[0],v[2]), Math.min(v[1],v[3]), Math.max(v[0],v[2]), Math.max(v[1],v[3])]; }
+function fieldOf(ctx, w){ let d = w, n = 0; while(d && !d.get(N('T')) && d.get(N('Parent')) && n++ < 20) d = ctx.lookup(d.get(N('Parent'))); return d || w; }
+function fieldType(ctx, w){ let d = w, n = 0; while(d && n++ < 20){ const ft = nameStr(ctx.lookup(d.get(N('FT')))); if(ft) return ft; d = d.get(N('Parent')) ? ctx.lookup(d.get(N('Parent'))) : null; } return ''; }
+const humanize = s => { s = s.split('.').pop().replace(/[_\-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim(); return s.charAt(0).toUpperCase() + s.slice(1); };
+function annotList(ctx, page){
+  const out = []; const ann = page.node.Annots(); if(!ann) return out;
+  for(let i=0;i<ann.size();i++){ const ref = ann.get(i); const d = ctx.lookup(ref); if(!(d instanceof PDFDict)) continue;
+    out.push({ref: ref instanceof PDFRef ? ref : ctx.register(d), dict:d, sub: nameStr(d.get(N('Subtype'))), rect: rectOf(ctx, d), elem:null}); }
+  return out;
+}
+/* Find the visible label for a form field: text to the left on the same line, above it, or to the right for check boxes */
+function findLabel(units, rect, isBtn){
+  const [x0, y0, x1, y1] = rect; const cy = (y0 + y1) / 2; let best = -1, bd = Infinity;
+  units.forEach((u, i) => {
+    if(!u.text || !u.text.trim()) return; const ux1 = u.x1 || u.x;
+    const sameLine = Math.abs((u.y + u.size*0.3) - cy) < Math.max(u.size, y1 - y0) * 0.8;
+    let d = Infinity;
+    if(sameLine && ux1 <= x0 + 4 && x0 - ux1 < 260) d = x0 - ux1;
+    else if(isBtn && sameLine && u.x >= x1 - 4 && u.x - x1 < 200) d = (u.x - x1) * 0.9;
+    else if(u.y > y1 && u.y - y1 < u.size*2.5 && u.x < x1 && ux1 > x0 - 20) d = (u.y - y1) * 2 + 40;
+    if(d < bd){ bd = d; best = i; } });
+  return best;
+}
+/* ---------- mathematics ---------- */
+const MATH_FONT_RE = /Math|CMMI|CMSY|CMEX|STIX|MTExtra|MT-Extra|Euclid|XITS|Asana|LMMath|Symbol/i;
+const FUNC_RE = /^(sin|cos|tan|log|ln|lim|exp|max|min|sinh|cosh|tanh|cot|sec|csc|arcsin|arccos|arctan|det|mod|gcd)$/i;
+function mathLike(lin, fonts){
+  if(!lin || lin.trim().length < 2) return false;
+  const strong = (lin.match(/[∑∏∫∮√∞∂∇≤≥≠≈≡∝∈∉⊂⊃⊆⊇∪∩±∓×÷⋅→⇒⇔∀∃∆πθλμσΣΩαβγδ]/g) || []).length;
+  const supsub = /[\^_]/.test(lin) || /[²³¹⁰⁴-⁹₀-₉]/.test(lin);
+  const eq = /[=<>≤≥≈≠]/.test(lin);
+  const words = (lin.match(/[A-Za-z]{4,}/g) || []).filter(w => !FUNC_RE.test(w)).length;
+  const mfonts = (fonts || []).filter(n => MATH_FONT_RE.test(n || '')); const realMathFont = mfonts.some(n => !/Symbol/i.test(n));
+  if(realMathFont && words <= 3) return true;
+  if(mfonts.length && (strong || eq) && words <= 3) return true;
+  if((strong || supsub) && eq && words <= 2) return true;
+  if(strong >= 2 && words <= 3) return true;
+  return eq && words === 0 && lin.length < 70 && /^[\sA-Za-z0-9=+\-−*/^_().,½¼¾·×÷]+$/.test(lin) && /[A-Za-z]\s*=/.test(lin);
+}
+function linearize(group){
+  const parts = group.units.flatMap(u => u.parts || []).sort((a, b) => a.x - b.x); if(!parts.length) return group.units.map(u => u.text).join(' ');
+  const base = parts.reduce((a, p) => p.size > a.size ? p : a, parts[0]); let out = '';
+  for(const p of parts){ const t = p.text; if(!t) continue;
+    let rel = null; if(p.size < base.size*0.85){ if(p.y > base.y + base.size*0.12) rel = '^'; else if(p.y < base.y - base.size*0.05) rel = '_'; }
+    if(rel) out += rel + (t.trim().length > 1 ? '(' + t.trim() + ')' : t.trim()); else out += t; }
+  return out;
+}
+const GREEK = {α:'alpha',β:'beta',γ:'gamma',δ:'delta',ε:'epsilon',ζ:'zeta',η:'eta',θ:'theta',ι:'iota',κ:'kappa',λ:'lambda',μ:'mu',ν:'nu',ξ:'xi',π:'pi',ρ:'rho',σ:'sigma',τ:'tau',υ:'upsilon',φ:'phi',χ:'chi',ψ:'psi',ω:'omega',Γ:'capital gamma',Δ:'capital delta',Θ:'capital theta',Λ:'capital lambda',Ξ:'capital xi',Π:'capital pi',Σ:'capital sigma',Φ:'capital phi',Ψ:'capital psi',Ω:'capital omega'};
+const MOPS = {'=':'equals','+':'plus','-':'minus','−':'minus','×':'times','·':'times','⋅':'times','*':'times','÷':'divided by','/':'over','±':'plus or minus','∓':'minus or plus','<':'is less than','>':'is greater than','≤':'is less than or equal to','≥':'is greater than or equal to','≠':'is not equal to','≈':'is approximately equal to','≡':'is equivalent to','∝':'is proportional to','∑':'the sum of','∏':'the product of','∫':'the integral of','∮':'the contour integral of','√':'the square root of','∞':'infinity','∂':'partial','∇':'nabla','∆':'delta','→':'tends to','⇒':'implies','⇔':'if and only if','∈':'is an element of','∉':'is not an element of','∀':'for all','∃':'there exists','∪':'union','∩':'intersection','⊂':'is a subset of','(':'open parenthesis',')':'close parenthesis','[':'open bracket',']':'close bracket','{':'open brace','}':'close brace','½':'one half','¼':'one quarter','¾':'three quarters','%':'percent',',':',','!':'factorial','°':'degrees','|':'vertical bar'};
+const SUPC = {'²':'2','³':'3','¹':'1','⁰':'0','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','ⁿ':'n','⁺':'+','⁻':'-'};
+function mathSpeak(src){
+  let s = String(src || '').replace(/[²³¹⁰⁴-⁹ⁿ⁺⁻]+/g, m => '^' + (m.length > 1 ? '(' + [...m].map(c => SUPC[c]).join('') + ')' : SUPC[m]))
+    .replace(/[₀-₉]+/g, m => '_' + (m.length > 1 ? '(' : '') + [...m].map(c => String.fromCharCode(c.charCodeAt(0) - 0x2080 + 48)).join('') + (m.length > 1 ? ')' : ''));
+  const out = []; let i = 0;
+  const group = () => { while(s[i] === ' ') i++;
+    if(s[i] === '('){ let d = 0, j = i; for(; j<s.length; j++){ if(s[j] === '(') d++; else if(s[j] === ')'){ d--; if(!d) break; } } const g = s.slice(i+1, j); i = j + 1; return g; }
+    let j = i; if(/[0-9]/.test(s[i])){ while(j < s.length && /[0-9.]/.test(s[j])) j++; } else if(s[i] === '-' || s[i] === '−'){ j = i + 1; while(j < s.length && /[0-9.]/.test(s[j])) j++; } else j = i + 1;
+    const g = s.slice(i, j); i = j; return g; };
+  const power = e => { e = e.trim(); if(e === '2') return 'squared'; if(e === '3') return 'cubed'; return 'to the power ' + mathSpeak(e) + (e.length > 1 ? ', end power' : ''); };
+  while(i < s.length){
+    const c = s[i];
+    if(/\s/.test(c)){ i++; continue; }
+    if(c === '^'){ i++; out.push(power(group())); continue; }
+    if(c === '_'){ i++; out.push('sub ' + mathSpeak(group())); continue; }
+    if(/[0-9]/.test(c)){ let j = i; while(j < s.length && (/[0-9.]/.test(s[j]) || (s[j] === ',' && /[0-9]/.test(s[j+1] || '')))) j++; out.push(s.slice(i, j)); i = j; continue; }
+    if(/[A-Za-z]/.test(c)){ let j = i; while(j < s.length && /[A-Za-z]/.test(s[j])) j++; const w = s.slice(i, j); i = j; if(FUNC_RE.test(w) || w.length >= 4) out.push(w); else out.push(...w.split('')); continue; }
+    if(GREEK[c]){ out.push(GREEK[c]); i++; continue; }
+    if(MOPS[c]){ out.push(MOPS[c]); i++; continue; }
+    i++;
+  }
+  return out.join(' ').replace(/\s+,/g, ',').replace(/\s+/g, ' ').trim();
+}
+/* ---------- tables ---------- */
+function detectTables(texts, W){
+  const parts = []; texts.forEach(u => (u.parts || []).forEach(p => parts.push(Object.assign({}, p, {u}))));
+  if(parts.length < 4) return [];
+  const rows = [];
+  for(const p of parts.slice().sort((a, b) => b.y - a.y || a.x - b.x)){
+    const r = rows.length ? rows[rows.length-1] : null;
+    if(r && Math.abs(r.y - p.y) < Math.max(2, 0.55*Math.max(r.size, p.size))){ r.parts.push(p); r.size = Math.max(r.size, p.size); }
+    else rows.push({y: p.y, size: p.size, parts: [p]});
+  }
+  rows.forEach(r => { r.parts.sort((a, b) => a.x - b.x); r.segs = [];
+    for(const p of r.parts){ const sg = r.segs[r.segs.length-1]; if(sg && p.x - sg.x1 < Math.max(6, r.size*1.2)){ sg.parts.push(p); sg.x1 = Math.max(sg.x1, p.x + p.w); } else r.segs.push({x0: p.x, x1: p.x + Math.max(p.w, 1), parts: [p]}); }
+    r.units = new Set(r.parts.map(p => p.u)); });
+  const tables = []; let i = 0;
+  while(i < rows.length){
+    if(rows[i].segs.length < 2){ i++; continue; }
+    let j = i; while(j + 1 < rows.length && rows[j+1].segs.length >= 2 && rows[j].y - rows[j+1].y < Math.max(rows[j].size, rows[j+1].size)*2.8) j++;
+    const run = rows.slice(i, j + 1); i = j + 1;
+    if(run.length < 2) continue;
+    const ref = run.reduce((a, r) => r.segs.length > a.segs.length ? r : a, run[0]); const cols = ref.segs.map(sg => [sg.x0, sg.x1]);
+    let ok = true;
+    for(const r of run){ r.cells = cols.map(() => []);
+      for(const sg of r.segs){ let best = 0, bd = Infinity; cols.forEach((c, ci) => { const ov = Math.min(c[1], sg.x1) - Math.max(c[0], sg.x0); const d = ov > 0 ? -ov : Math.min(Math.abs(sg.x0 - c[0]), Math.abs(sg.x1 - c[1]), Math.abs((sg.x0 + sg.x1)/2 - (c[0] + c[1])/2)); if(d < bd){ bd = d; best = ci; } }); r.cells[best].push(sg); }
+      if(r.cells.filter(c => c.length).length < 2) ok = false; }
+    const segs = run.flatMap(r => r.segs); const avgLen = segs.reduce((a, sg) => a + sg.parts.map(p => p.text).join('').length, 0) / segs.length; const avgW = segs.reduce((a, sg) => a + (sg.x1 - sg.x0), 0) / segs.length;
+    const cellTexts = segs.map(sg => sg.parts.map(p => p.text).join('').trim());
+    const wordy = cellTexts.filter(t => t.split(/\s+/).length >= 3); const lowerStart = wordy.filter(t => /^[a-z]/.test(t)).length;
+    const avgWords = cellTexts.reduce((a, t) => a + t.split(/\s+/).length, 0) / cellTexts.length; const headBold = run[0].parts.every(p => p.bold);
+    if(wordy.length >= 4 && lowerStart / wordy.length > 0.5) continue;
+    if(cols.length === 2 && avgWords >= 4 && !headBold) continue;
+    if(!ok || cols.length < 2 || avgLen > 40 || (cols.length === 2 && avgW > W*0.3)) continue;
+    const units = new Set(run.flatMap(r => [...r.units]));
+    const inRun = new Set(run.flatMap(r => r.parts.map(p => p.k + '@' + texts.indexOf(p.u))));
+    if([...units].some(u => u.parts.some(p => !inRun.has(p.k + '@' + texts.indexOf(u))))) continue;
+    tables.push({rows: run, cols, units});
+  }
+  return tables;
+}
+/* ---------- reading order: detect two columns and order left column before right ---------- */
+function readingOrder(blocks, W){
+  const narrow = blocks.filter(b => b.bb && (b.bb[2] - b.bb[0]) < W*0.55); if(narrow.length < 4) return blocks;
+  let gutter = null;
+  for(const b of narrow.slice().sort((a, c) => a.bb[2] - c.bb[2])){ const g = b.bb[2] + 1;
+    const left = narrow.filter(n => n.bb[2] <= g), right = narrow.filter(n => n.bb[0] >= g), crossing = narrow.filter(n => n.bb[0] < g && n.bb[2] > g);
+    if(left.length >= 2 && right.length >= 2 && !crossing.length && g > W*0.3 && g < W*0.7){ gutter = g; break; } }
+  if(gutter == null) return blocks;
+  const sorted = blocks.slice().sort((a, b) => (b.bb ? b.bb[3] : 0) - (a.bb ? a.bb[3] : 0));
+  const out = []; let L = [], R = []; const flush = () => { out.push(...L, ...R); L = []; R = []; };
+  for(const b of sorted){ if(!b.bb){ L.push(b); continue; } if(b.bb[0] < gutter && b.bb[2] > gutter){ flush(); out.push(b); } else if(b.bb[2] <= gutter) L.push(b); else R.push(b); }
+  flush(); return out;
+}
+/* =========================================================
+   Auto-tagging for untagged documents
+   ========================================================= */
+function autoTag(doc){
+  const ctx = doc.context, cat = doc.catalog; const pages = doc.getPages(); const cache = new Map(); const data = [];
+  pages.forEach(page => { try{ const s = pageContent(ctx, page); const ops = parseContent(s); const r = scanOps(ops, pageEnv(ctx, page.node.Resources(), cache, 0)); data.push({page, s, ops, r, mb: page.getMediaBox()}); }catch(e){ data.push(null); } });
+  const stats = {H:0, P:0, Figure:0, L:0, Link:0, Table:0, Formula:0, Form:0, Caption:0, Artifact:0, reordered:0, headingsFixed:0, captionAlts:0};
+  const band = new Map(), imgSeen = new Map();
+  data.forEach((d, pi) => { if(!d) return; const top = d.mb.y + d.mb.height, bot = d.mb.y, H = d.mb.height;
+    d.r.units.forEach(u => {
+      if(u.kind === 'text'){ u.band = u.y > top - H*0.07 || u.y < bot + H*0.07; if(u.band){ const key = normKey(u.text); if(key){ if(!band.has(key)) band.set(key, new Set()); band.get(key).add(pi); } } }
+      if(u.kind === 'image' && u.ref){ const key = u.ref + '@' + u.bbox.map(v => Math.round(v/4)).join(','); if(!imgSeen.has(key)) imgSeen.set(key, new Set()); imgSeen.get(key).add(pi); u.repKey = key; }
+    }); });
+  data.forEach(d => { if(!d) return;
+    const texts = d.r.units.filter(u => u.kind === 'text' && u.mk === 'none' && !u.band);
+    const groups = []; let g = null;
+    for(const u of texts){ if(g && Math.abs(u.y - g.y) < 0.6*Math.max(u.size, g.size)){ g.units.push(u); g.size = Math.max(g.size, u.size); if(u.size >= g.size) g.y = u.y; } else { g = {units:[u], y:u.y, size:u.size}; groups.push(g); } }
+    groups.forEach(gr => { gr.linear = linearize(gr); if(mathLike(gr.linear, gr.units.map(u => u.font))){ gr.formula = true; gr.units.forEach(u => u.formulaGroup = gr); } });
+    d.tables = detectTables(texts.filter(u => !u.formulaGroup), d.mb.width);
+    d.tables.forEach(t => t.units.forEach(u => u.table = t));
+  });
+  const sizeW = {}; const pool = [];
+  data.forEach(d => { if(!d) return; d.r.units.forEach(u => { if(u.kind === 'text' && !u.band && !u.table && !u.formulaGroup && u.mk === 'none'){ pool.push(u); const sz = Math.round(u.size*2)/2; sizeW[sz] = (sizeW[sz] || 0) + Math.max(1, u.text.length); } }); });
+  const body = +(Object.entries(sizeW).sort((a, b) => b[1] - a[1])[0] || [11])[0];
+  const headSizes = [...new Set(pool.filter(u => u.size >= body*1.15 && u.text.trim().length <= 160).map(u => Math.round(u.size*2)/2))].sort((a, b) => b - a).slice(0, 5);
+  const levelOf = sz => { const i = headSizes.indexOf(Math.round(sz*2)/2); return i >= 0 ? i + 1 : 0; };
+  const boldLevel = Math.min(6, headSizes.length + 1);
+  const docE = {S:'Document', kids:[]}; const nums = []; let annotKey = pages.length;
+  data.forEach((d, pi) => {
+    if(!d) return;
+    const {page, s, ops, r, mb} = d; const pg = page.ref; const pre = {}, post = {}; let mcid = 0; const owner = [];
+    const W = mb.width, H = mb.height; const annots = annotList(ctx, page); const pageKids = [];
+    const hasInvisible = r.units.some(u => u.kind === 'text' && u.invisible);
+    const markRange = (a, b, open) => { pre[a] = (pre[a] ? pre[a] + '\n' : '') + open; post[b] = 'EMC' + (post[b] ? '\n' + post[b] : ''); };
+    const art = (u, type) => { markRange(u.start, u.end, type ? `/Artifact <</Type /${type}>> BDC` : '/Artifact BMC'); stats.Artifact++; };
+    const ubb = u => u.kind === 'text' ? [u.x, u.y - u.size*0.25, Math.max(u.x1 || u.x, u.x + 1), u.y + u.size*0.85] : (u.bbox || null);
+    const grow = (el, bb) => { if(!bb) return; el.bb = el.bb ? [Math.min(el.bb[0], bb[0]), Math.min(el.bb[1], bb[1]), Math.max(el.bb[2], bb[2]), Math.max(el.bb[3], bb[3])] : bb.slice(); };
+    const top = el => { pageKids.push(el); return el; };
+    const linkFor = u => u.kind === 'text' ? annots.find(an => an.sub === 'Link' && an.rect && u.y >= an.rect[1] - u.size*0.5 && u.y <= an.rect[3] && (u.x1 || u.x) >= an.rect[0] - 1 && u.x <= an.rect[2]) : null;
+    const addMc = (el, u, role, topEl) => {
+      const an = linkFor(u);
+      if(an){ if(!an.elem){ an.elem = {S:'Link', kids:[], pg, objr: an.ref}; el.kids.push(an.elem); stats.Link++; } const id = mcid++; markRange(u.start, u.end, `/Link <</MCID ${id}>> BDC`); an.elem.kids.push(id); owner[id] = an.elem; }
+      else { const id = mcid++; markRange(u.start, u.end, `/${role} <</MCID ${id}>> BDC`); el.kids.push(id); owner[id] = el; }
+      el.text = (el.text || '') + (u.text || '') + ' '; grow(el, ubb(u)); if(topEl && topEl !== el) grow(topEl, ubb(u)); u.top = topEl || el;
+    };
+    let block = null; const recent = []; const emitted = new Set(); const units = r.units;
+    for(let i=0;i<units.length;i++){
+      const u = units[i];
+      if(u.mk !== 'none') continue;
+      if(u.kind === 'path' || u.kind === 'shade'){ art(u); continue; }
+      if(u.kind === 'image'){
+        const b = u.bbox, bw = b[2] - b[0], bh = b[3] - b[1], area = Math.max(0, bw*bh) / (W*H), aspect = Math.max(bw, bh) / Math.max(0.01, Math.min(bw, bh));
+        const repeated = u.repKey && imgSeen.get(u.repKey).size >= 2;
+        if(area < 0.002 || aspect > 15 || repeated || (hasInvisible && area > 0.6)){ art(u); continue; }
+        block = null; recent.length = 0; const el = top({S:'Figure', kids:[], pg}); addMc(el, u, 'Figure', el); stats.Figure++; continue; }
+      if(u.kind === 'form'){
+        if(u.info.hasMcid) continue;
+        if(!u.info.hasText){ art(u); continue; }
+        block = null; recent.length = 0; const el = top({S:'P', kids:[], pg}); addMc(el, u, 'P', el); stats.P++; continue; }
+      const t = u.text || '';
+      if(u.band && (isPageNum(t) || (band.get(normKey(t)) || new Set()).size >= 2)){ art(u, 'Pagination'); continue; }
+      if(u.decOk && !t.trim()){ art(u); continue; }
+      if(u.table){ const tb = u.table;
+        if(!emitted.has(tb)){ emitted.add(tb); block = null; recent.length = 0; const T = top({S:'Table', kids:[], pg}); stats.Table++;
+          tb.rows.forEach((row, ri) => { const TR = {S:'TR', kids:[], pg, keep:true}; T.kids.push(TR);
+            row.cells.forEach(segs => { const role = ri === 0 ? 'TH' : 'TD'; const cell = {S:role, kids:[], pg, keep:true, attrs: role === 'TH' ? {O:'Table', Scope:'Column'} : null}; TR.kids.push(cell);
+              segs.forEach(sg => sg.parts.forEach(p => { const id = mcid++; markRange(p.k, p.k, `/${role} <</MCID ${id}>> BDC`); cell.kids.push(id); owner[id] = cell; grow(T, [p.x, p.y - p.size*0.25, p.x + Math.max(p.w, 1), p.y + p.size*0.85]); })); }); });
+          tb.units.forEach(x => x.top = T); }
+        continue; }
+      if(u.formulaGroup){ const gr = u.formulaGroup;
+        if(!emitted.has(gr)){ emitted.add(gr); block = null; recent.length = 0; const F = top({S:'Formula', kids:[], pg, alt: mathSpeak(gr.linear)}); F.text = gr.linear; stats.Formula++;
+          gr.units.forEach(x => { const id = mcid++; markRange(x.start, x.end, `/Formula <</MCID ${id}>> BDC`); F.kids.push(id); owner[id] = F; grow(F, ubb(x)); x.top = F; }); }
+        continue; }
+      const ux1 = Math.max(u.x1 || u.x, u.x + 1);
+      const overl = b => Math.min(b.x1, ux1) - Math.max(b.x0, u.x) > -u.size;
+      const touch = b => { b.lastY = u.y; b.x0 = Math.min(b.x0, u.x); b.x1 = Math.max(b.x1, ux1); block = b; };
+      const open = b => { b.x0 = u.x; b.x1 = ux1; recent.push(b); if(recent.length > 6) recent.shift(); block = b; return b; };
+      if(block && Math.abs(block.lastY - u.y) < Math.max(2, u.size*0.4) && u.x - block.x1 < u.size*3){ addMc(block.target, u, block.role, block.topEl); block.x1 = Math.max(block.x1, ux1); continue; }
+      const next = units.slice(i+1).find(x => x.kind === 'text' && x.mk === 'none');
+      const nextSameLine = next && Math.abs(next.y - u.y) < u.size*0.4 && next.x - ux1 < u.size*3;
+      const lvl = u.band ? 0 : levelOf(u.size);
+      const boldHead = !lvl && !u.band && u.bold && !nextSameLine && t.trim().length > 1 && t.trim().length <= 80 && !/[.,;:]$/.test(t.trim()) && Math.abs(u.size - body) <= 1.5 && !BULLET_RE.test(t);
+      const find = pred => { for(let q=recent.length-1;q>=0;q--){ const b = recent[q]; const gap = b.lastY - u.y; if(pred(b, gap) && overl(b)) return b; } return null; };
+      if(lvl || boldHead){ const role = 'H' + Math.min(6, lvl || boldLevel);
+        const b = find((b, gap) => b.role === role && gap > 0 && gap < u.size*1.6);
+        if(b){ addMc(b.target, u, role, b.topEl); touch(b); }
+        else { const el = top({S:role, kids:[], pg}); open({role, target:el, topEl:el, lastY:u.y, size:u.size}); addMc(el, u, role, el); stats.H++; }
+        continue; }
+      const onlyBullet = t.trim().length >= 1 && t.trim().length <= 3 && /^[•●○◦▪▫■□‣⁃∙·\-–*\uf0b7\uf0a7\uf076\uf0d8\d.()a-hA-H]+$/.test(t.trim()) && nextSameLine;
+      if(BULLET_RE.test(t) || onlyBullet){
+        let b = find((b, gap) => b.type === 'L' && gap > 0 && gap < u.size*3);
+        if(!b){ const Lst = top({S:'L', kids:[], pg}); b = open({type:'L', list:Lst, topEl:Lst, lastY:u.y, size:u.size}); stats.L++; }
+        const li = {S:'LI', kids:[], pg}, lb = {S:'LBody', kids:[], pg}; b.list.kids.push(li);
+        if(onlyBullet){ const lbl = {S:'Lbl', kids:[], pg}; li.kids.push(lbl, lb); addMc(lbl, u, 'Lbl', b.list); } else { li.kids.push(lb); addMc(lb, u, 'LBody', b.list); }
+        Object.assign(b, {target: lb, role:'LBody', liX: u.x}); touch(b); continue; }
+      const bl = find((b, gap) => b.type === 'L' && u.x > b.liX + 2 && gap > 0 && gap < u.size*1.8);
+      if(bl){ addMc(bl.target, u, 'LBody', bl.topEl); touch(bl); continue; }
+      const bp = find((b, gap) => b.role === 'P' && Math.abs(u.size - b.size) <= 0.8 && gap > 0 && gap < u.size*2.05);
+      if(bp){ addMc(bp.target, u, 'P', bp.topEl); touch(bp); continue; }
+      const el = top({S:'P', kids:[], pg}); open({role:'P', target:el, topEl:el, lastY:u.y, size:u.size}); addMc(el, u, 'P', el); stats.P++;
+    }
+    // captions belong inside their figure; the caption text becomes the starting alt text
+    for(let k=0;k<pageKids.length;k++){ const el = pageKids[k]; if(el.S !== 'Figure') continue;
+      for(const j of [k+1, k-1]){ const c = pageKids[j]; if(c && c.S === 'P' && CAPTION_RE.test((c.text || '').trim())){
+        c.S = 'Caption'; el.kids.push(c); grow(el, c.bb); pageKids.splice(j, 1); if(j < k) k--; stats.Caption++;
+        if(!el.alt){ el.alt = (c.text.trim().replace(CAPTION_RE, '').trim() || c.text.trim()); stats.captionAlts++; } break; } } }
+    // annotations: form fields go right after their visible label, others by position
+    const textUnits = r.units.filter(u => u.kind === 'text' && u.mk === 'none');
+    annots.forEach(an => {
+      if(an.elem || ['Popup','PrinterMark','TrapNet'].includes(an.sub)) return;
+      const S = an.sub === 'Link' ? 'Link' : an.sub === 'Widget' ? 'Form' : 'Annot';
+      an.elem = {S, kids:[], pg, objr: an.ref, bb: an.rect}; if(S === 'Link') stats.Link++; if(S === 'Form') stats.Form++;
+      let placed = false;
+      if(S === 'Form' && an.rect){ const li = findLabel(textUnits, an.rect, fieldType(ctx, an.dict) === 'Btn');
+        if(li >= 0 && textUnits[li].top){ const lab = textUnits[li].top; const idx = pageKids.indexOf(lab);
+          if(idx >= 0){ let at = idx + 1; while(pageKids[at] && pageKids[at].afterLabel === lab) at++; an.elem.afterLabel = lab; pageKids.splice(at, 0, an.elem); placed = true; } } }
+      if(!placed){ const yTop = an.rect ? an.rect[3] : -1e9; let at = pageKids.findIndex(el => el.bb && el.bb[3] < yTop - 1); if(at < 0) at = pageKids.length; pageKids.splice(at, 0, an.elem); }
+    });
+    const ordered = readingOrder(pageKids, W); if(ordered.some((e, i) => e !== pageKids[i])) stats.reordered++;
+    docE.kids.push(...ordered);
+    d.owner = owner; d.annots = annots; d.mcids = mcid;
+    if(Object.keys(pre).length) setContent(ctx, page, rewrite(s, ops, pre, post, new Set()));
+    if(annots.length) page.node.set(N('Tabs'), N('S'));
+  });
+  // heading levels must start at H1 and never skip a level
+  let last = 0; const fixH = el => { const m = /^H([1-6])$/.exec(el.S); if(m){ const lv = +m[1], nl = Math.min(lv, last + 1); if(nl !== lv) stats.headingsFixed++; el.S = 'H' + nl; last = nl; } el.kids.forEach(k => { if(typeof k === 'object') fixH(k); }); }; fixH(docE);
+  const rootDict = ctx.obj({Type:'StructTreeRoot'}); const rootRef = ctx.register(rootDict);
+  const prune = el => { el.kids = el.kids.filter(k => typeof k === 'number' || prune(k)); return el.kids.length || el.objr || el.keep; };
+  prune(docE);
+  const mat = (el, parentRef) => {
+    const dict = ctx.obj({Type:'StructElem', S: el.S, P: parentRef}); const ref = ctx.register(dict); el.ref = ref;
+    if(el.pg) dict.set(N('Pg'), el.pg);
+    if(el.alt) dict.set(N('Alt'), PDFHexString.fromText(el.alt));
+    if(el.attrs) dict.set(N('A'), ctx.obj(el.attrs));
+    const kids = el.kids.map(k => typeof k === 'number' ? ctx.obj(k) : mat(k, ref));
+    if(el.objr) kids.push(ctx.obj({Type:'OBJR', Obj: el.objr, Pg: el.pg}));
+    dict.set(N('K'), ctx.obj(kids)); return ref;
+  };
+  const docRef = mat(docE, rootRef);
+  data.forEach((d, pi) => { if(!d || !d.mcids) return; nums.push(ctx.obj(pi), ctx.obj(d.owner.map(e => e && e.ref ? e.ref : ctx.obj(null)))); d.page.node.set(N('StructParents'), ctx.obj(pi)); });
+  data.forEach(d => { if(!d) return; d.annots.forEach(an => { if(!an.elem || !an.elem.ref) return; const key = annotKey++; an.dict.set(N('StructParent'), ctx.obj(key)); nums.push(ctx.obj(key), an.elem.ref); }); });
+  rootDict.set(N('K'), docRef); rootDict.set(N('ParentTree'), ctx.obj({Nums: ctx.obj(nums)})); rootDict.set(N('ParentTreeNextKey'), ctx.obj(annotKey));
+  cat.set(N('StructTreeRoot'), rootRef);
+  let mi = ctx.lookup(cat.get(N('MarkInfo'))); if(!(mi instanceof PDFDict)){ mi = ctx.obj({}); cat.set(N('MarkInfo'), mi); } mi.set(N('Marked'), PDFBool.True);
+  return stats;
+}
+
+/* Name every form field from its visible label (tooltip /TU is the accessible name) */
+function labelFields(doc){
+  const ctx = doc.context; const res = {named:0, fromName:0, missing:0}; const cache = new Map();
+  doc.getPages().forEach(page => {
+    const ann = page.node.Annots(); if(!ann) return; let units = null;
+    for(let i=0;i<ann.size();i++){
+      const w = ctx.lookup(ann.get(i)); if(!(w instanceof PDFDict) || nameStr(w.get(N('Subtype'))) !== 'Widget') continue;
+      const fld = fieldOf(ctx, w); if(txt(ctx.lookup(fld.get(N('TU'))))) continue;
+      if(!units){ try{ units = scanOps(parseContent(pageContent(ctx, page)), pageEnv(ctx, page.node.Resources(), cache, 0)).units.filter(u => u.kind === 'text'); }catch(e){ units = []; } }
+      const rect = rectOf(ctx, w); let label = '';
+      if(rect){ const li = findLabel(units, rect, fieldType(ctx, w) === 'Btn'); if(li >= 0) label = units[li].text.replace(/[\s:*]+$/, '').trim(); }
+      if(label){ fld.set(N('TU'), PDFHexString.fromText(label)); res.named++; }
+      else { const nm = txt(ctx.lookup(fld.get(N('T')))); if(nm){ fld.set(N('TU'), PDFHexString.fromText(humanize(nm))); res.fromName++; } else res.missing++; }
+    }
+  });
+  return res;
+}
+/* Repairs inside an existing tag tree: heading levels, formulas tagged as text, formulas without alt text */
+function fixStructure(doc, want){
+  const ctx = doc.context; const root = ctx.lookup(doc.catalog.get(N('StructTreeRoot'))); const res = {headings:0, formulas:0, retagged:0};
+  if(!(root instanceof PDFDict)) return res;
+  const pages = doc.getPages(); const pageIdx = new Map(pages.map((p, i) => [p.ref.toString(), i+1])); const mcidText = {}; const cache = new Map();
+  pages.forEach(p => { try{ mcidText[p.ref.toString()] = scanOps(parseContent(pageContent(ctx, p)), pageEnv(ctx, p.node.Resources(), cache, 0)).mcidText; }catch(e){} });
+  const st = walkStruct(ctx, root, mcidText, pageIdx); const visit = (ns, fn) => ns.forEach(n => { fn(n); visit(n.kids, fn); });
+  if(want.headlevels){ let last = 0; visit(st.tree, n => { const m = /^H([1-6])$/.exec(n.r); if(!m) return; const lv = +m[1], nl = Math.min(lv, last + 1); if(nl !== lv){ n.dict.set(N('S'), N('H' + nl)); res.headings++; } last = nl; }); }
+  if(want.formulas) visit(st.tree, n => {
+    if(n.r === 'Formula' && !n.alt && n.t.trim()){ n.dict.set(N('Alt'), PDFHexString.fromText(mathSpeak(n.t))); res.formulas++; }
+    else if((n.r === 'P' || n.r === 'Span') && !n.kids.length && n.t.trim() && mathLike(n.t, [])){ n.dict.set(N('S'), N('Formula')); if(!n.alt) n.dict.set(N('Alt'), PDFHexString.fromText(mathSpeak(n.t))); res.retagged++; } });
+  return res;
+}
+
+/* =========================================================
+   Fix: untagged content and nesting in already-tagged files
+   ========================================================= */
+function fixContent(doc, want){
+  const ctx = doc.context, cat = doc.catalog, L = x => ctx.lookup(x);
+  const rootRef = cat.get(N('StructTreeRoot')); const root = L(rootRef); if(!(root instanceof PDFDict)) return {nest:0, tagged:0, art:0};
+  const st = {nest:0, tagged:0, art:0};
+  const kidsOf = d => { let K = L(d.get(N('K'))); if(K instanceof PDFArray) return K; const arr = ctx.obj(K ? [d.get(N('K'))] : []); d.set(N('K'), arr); return arr; };
+  let top = null;
+  const rk = L(root.get(N('K')));
+  const firstElem = arr => { for(let i=0;i<arr.size();i++){ const e = L(arr.get(i)); if(e instanceof PDFDict && e.get(N('S'))) return {dict:e, ref:arr.get(i)}; } return null; };
+  if(rk instanceof PDFArray) top = firstElem(rk); else if(rk instanceof PDFDict && rk.get(N('S'))) top = {dict:rk, ref:root.get(N('K'))};
+  const ensureTop = () => {
+    if(top && top.ref instanceof PDFRef) return top;
+    if(top){ const ref = ctx.register(top.dict); root.set(N('K'), ref); top = {dict: top.dict, ref}; return top; }
+    const d = ctx.obj({Type:'StructElem', S:'Document', P: rootRef, K: ctx.obj([])}); const ref = ctx.register(d); kidsOf(root).push(ref); top = {dict:d, ref}; return top; };
+  let pt = L(root.get(N('ParentTree'))); if(!(pt instanceof PDFDict)){ pt = ctx.obj({Nums: ctx.obj([])}); root.set(N('ParentTree'), pt); }
+  const ptFind = (node, key, d) => { node = L(node); if(!(node instanceof PDFDict) || d > 20) return null; const nums = L(node.get(N('Nums')));
+    if(nums instanceof PDFArray) for(let i=0;i+1<nums.size();i+=2) if(numOf(L(nums.get(i))) === key) return {nums, i};
+    const kids = L(node.get(N('Kids'))); if(kids instanceof PDFArray) for(let j=0;j<kids.size();j++){ const r = ptFind(kids.get(j), key, d+1); if(r) return r; } return null; };
+  let maxKey = -1; const scanKeys = (node, d) => { node = L(node); if(!(node instanceof PDFDict) || d > 20) return; const nums = L(node.get(N('Nums'))); if(nums instanceof PDFArray) for(let i=0;i<nums.size();i+=2) maxKey = Math.max(maxKey, numOf(L(nums.get(i))) ?? -1); const kids = L(node.get(N('Kids'))); if(kids instanceof PDFArray) for(let j=0;j<kids.size();j++) scanKeys(kids.get(j), d+1); };
+  scanKeys(pt, 0); let nextKey = Math.max(maxKey + 1, numOf(L(root.get(N('ParentTreeNextKey')))) || 0);
+  const ptArray = key => { const f = ptFind(pt, key, 0);
+    if(f){ let arr = L(f.nums.get(f.i+1)); if(!(arr instanceof PDFArray)){ arr = ctx.obj([]); f.nums.set(f.i+1, arr); } return arr; }
+    const arr = ctx.obj([]); const nums = L(pt.get(N('Nums')));
+    if(nums instanceof PDFArray){ nums.push(ctx.obj(key)); nums.push(arr); }
+    else { let kids = L(pt.get(N('Kids'))); if(!(kids instanceof PDFArray)){ kids = ctx.obj([]); pt.set(N('Kids'), kids); } kids.push(ctx.register(ctx.obj({Limits:[key,key], Nums: ctx.obj([ctx.obj(key), arr])}))); }
+    return arr; };
+  const insertAfter = (ownerRef, newRef) => {
+    const owner = L(ownerRef); const parentRef = owner instanceof PDFDict ? owner.get(N('P')) : null; const parent = L(parentRef);
+    if(!(parent instanceof PDFDict) || !(parentRef instanceof PDFRef) || nameStr(parent.get(N('Type'))) === 'StructTreeRoot') return null;
+    const kids = kidsOf(parent); for(let i=0;i<kids.size();i++){ const k = kids.get(i); if(k instanceof PDFRef && k.toString() === ownerRef.toString()){ kids.insert(i+1, newRef); return parentRef; } }
+    return null; };
+  const removeMcid = (page, id) => {
+    const key = numOf(L(page.node.get(N('StructParents')))); if(key == null) return; const f = ptFind(pt, key, 0); if(!f) return;
+    const arr = L(f.nums.get(f.i+1)); if(!(arr instanceof PDFArray) || id >= arr.size()) return;
+    const ownerRef = arr.get(id); const owner = L(ownerRef); arr.set(id, ctx.obj(null)); if(!(owner instanceof PDFDict)) return;
+    const kids = kidsOf(owner);
+    for(let i=kids.size()-1;i>=0;i--){ const k = L(kids.get(i)); if((k instanceof PDFNumber && k.asNumber() === id) || (k instanceof PDFDict && nameStr(k.get(N('Type'))) === 'MCR' && numOf(L(k.get(N('MCID')))) === id)) kids.remove(i); }
+    if(kids.size() === 0 && ownerRef instanceof PDFRef){ const parent = L(owner.get(N('P'))); if(parent instanceof PDFDict){ const pk = kidsOf(parent); for(let i=pk.size()-1;i>=0;i--){ const k = pk.get(i); if(k instanceof PDFRef && k.toString() === ownerRef.toString()) pk.remove(i); } } }
+  };
+  const cache = new Map();
+  doc.getPages().forEach(page => {
+    let s, ops, r; try{ s = pageContent(ctx, page); ops = parseContent(s); r = scanOps(ops, pageEnv(ctx, page.node.Resources(), cache, 0)); }catch(e){ return; }
+    const drop = new Set(), pre = {}, post = {};
+    const dropPair = k => { drop.add(k); if(r.pairs[k] != null) drop.add(r.pairs[k]); st.nest++; };
+    if(want.artintag) r.viol.artInTag.forEach(dropPair);
+    if(want.tagart) r.viol.tagInArt.forEach(k => { dropPair(k); const p = ops[k].args[1]; let id = null; if(p && p.t === 'dict'){ const m = /\/MCID\s+(\d+)/.exec(p.raw); if(m) id = +m[1]; } else if(p && p.t === 'name'){ id = pageEnv(ctx, page.node.Resources(), cache, 0).propMcid(p.v); } if(id != null) removeMcid(page, id); });
+    if(want.untagged){
+      const mark = (u, open) => { pre[u.start] = (pre[u.start] ? pre[u.start] + '\n' : '') + open; post[u.end] = 'EMC' + (post[u.end] ? '\n' + post[u.end] : ''); };
+      let mcid = r.maxMcid + 1, arr = null, last = null; const W = page.getWidth(), H = page.getHeight(); const cursor = new Map();
+      const keyArr = () => { if(arr) return arr; let key = numOf(L(page.node.get(N('StructParents')))); if(key == null){ key = nextKey++; page.node.set(N('StructParents'), ctx.obj(key)); } arr = ptArray(key); return arr; };
+      for(const u of r.units){
+        if(u.mk !== 'none') continue;
+        if(u.kind === 'form' && (u.info.allMarked || u.info.hasMcid)) continue;
+        const area = u.bbox ? Math.max(0,(u.bbox[2]-u.bbox[0])*(u.bbox[3]-u.bbox[1]))/(W*H) : 1;
+        const aspect = u.bbox ? Math.max(u.bbox[2]-u.bbox[0], u.bbox[3]-u.bbox[1]) / Math.max(0.01, Math.min(u.bbox[2]-u.bbox[0], u.bbox[3]-u.bbox[1])) : 1;
+        if(u.kind === 'path' || u.kind === 'shade' || (u.kind === 'form' && !u.info.hasText) || (u.kind === 'image' && (area < 0.002 || aspect > 15)) || (u.kind === 'text' && u.decOk && !u.text.trim())){ mark(u, '/Artifact BMC'); st.art++; continue; }
+        const isF = u.kind === 'text' && mathLike(u.text, [u.font]);
+        const role = u.kind === 'image' ? 'Figure' : isF ? 'Formula' : 'P'; const a = keyArr(); let elRef;
+        if(role === 'P' && last && last.role === 'P' && u.kind === 'text' && Math.abs(last.size - u.size) <= 0.8 && last.y - u.y > -u.size*0.4 && last.y - u.y < u.size*2.2){ elRef = last.ref; kidsOf(L(elRef)).push(ctx.obj(mcid)); }
+        else {
+          const t = ensureTop(); const d = ctx.obj({Type:'StructElem', S: role, P: t.ref, Pg: page.ref, K: ctx.obj([ctx.obj(mcid)])}); elRef = ctx.register(d);
+          if(isF){ d.set(N('Alt'), PDFHexString.fromText(mathSpeak(u.text))); st.formulas = (st.formulas || 0) + 1; }
+          let placed = false;
+          if(u.prevMcid != null && u.prevMcid < a.size()){ const ownerRef = a.get(u.prevMcid); if(ownerRef instanceof PDFRef){ const anchor = cursor.get(ownerRef.toString()) || ownerRef; const pRef = insertAfter(anchor, elRef); if(pRef){ d.set(N('P'), pRef); cursor.set(ownerRef.toString(), elRef); placed = true; } } }
+          if(!placed) kidsOf(t.dict).push(elRef);
+        }
+        while(a.size() <= mcid) a.push(ctx.obj(null)); a.set(mcid, elRef);
+        mark(u, `/${role} <</MCID ${mcid}>> BDC`); mcid++; st.tagged++;
+        last = {ref: elRef, role, y: u.y, size: u.size || 0};
+      }
+    }
+    if(want.annots){ const ann = page.node.Annots();
+      if(ann) for(let i=0;i<ann.size();i++){ const ref = ann.get(i); const ad = L(ref); if(!(ad instanceof PDFDict) || !(ref instanceof PDFRef)) continue;
+        const sub = nameStr(ad.get(N('Subtype'))); if(['Popup','PrinterMark','TrapNet'].includes(sub) || ad.get(N('StructParent')) != null) continue;
+        const S = sub === 'Link' ? 'Link' : sub === 'Widget' ? 'Form' : 'Annot'; const t = ensureTop();
+        const elRef = ctx.register(ctx.obj({Type:'StructElem', S, P: t.ref, Pg: page.ref, K: ctx.obj([ctx.obj({Type:'OBJR', Obj: ref, Pg: page.ref})])})); kidsOf(t.dict).push(elRef);
+        const key = nextKey++; ad.set(N('StructParent'), ctx.obj(key)); const nums = L(pt.get(N('Nums')));
+        if(nums instanceof PDFArray){ nums.push(ctx.obj(key)); nums.push(elRef); } else { let kids = L(pt.get(N('Kids'))); if(!(kids instanceof PDFArray)){ kids = ctx.obj([]); pt.set(N('Kids'), kids); } kids.push(ctx.register(ctx.obj({Limits:[key,key], Nums: ctx.obj([ctx.obj(key), elRef])}))); }
+        st.annots = (st.annots || 0) + 1; }
+      if(ann && ann.size()) page.node.set(N('Tabs'), N('S')); }
+    if(drop.size || Object.keys(pre).length) setContent(ctx, page, rewrite(s, ops, pre, post, drop));
+  });
+  root.set(N('ParentTreeNextKey'), ctx.obj(nextKey));
+  return st;
+}
+
+/* =========================================================
+   Fix: metadata and the full pipeline
+   ========================================================= */
+function upsertXmp(doc, title, pdfua){
+  const ctx = doc.context, cat = doc.catalog; const m = ctx.lookup(cat.get(N('Metadata')));
+  let xml = m ? streamText(m) : '';
+  const e = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  if(!/<\/rdf:RDF>/.test(xml)) xml = '<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"></rdf:RDF></x:xmpmeta><?xpacket end="w"?>';
+  let add = '';
+  if(title){
+    if(/<dc:title>/.test(xml)) xml = xml.replace(/(<dc:title>[\s\S]*?<rdf:li[^>]*>)[\s\S]*?(<\/rdf:li>)/, `$1${e(title)}$2`);
+    else add += `<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title><rdf:Alt><rdf:li xml:lang="x-default">${e(title)}</rdf:li></rdf:Alt></dc:title></rdf:Description>`;
+  }
+  if(pdfua && !/pdfuaid:part/.test(xml)) add += '<rdf:Description rdf:about="" xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/"><pdfuaid:part>1</pdfuaid:part></rdf:Description>';
+  xml = xml.replace('</rdf:RDF>', add + '</rdf:RDF>');
+  cat.set(N('Metadata'), ctx.register(ctx.stream(new TextEncoder().encode(xml), {Type:'Metadata', Subtype:'XML'})));
+}
+async function applyFixes(bytes, want, inputs){
+  const doc = await PDFDocument.load(bytes, {updateMetadata:false});
+  const ctx = doc.context, cat = doc.catalog, L = x => ctx.lookup(x); const done = [], review = []; let uniLeft = 0;
+  if(want.fonts){ const r = await embedFonts(doc); if(r.n) done.push(`Embedded ${r.n} font(s) with metric-compatible substitutes`); if(r.missing.length) done.push(`Font files unavailable: ${[...new Set(r.missing)].join(', ')}`); }
+  if(want.unicode){ const js = await pdfjsFontMaps(bytes); const r = fixUnicode(doc, js); if(r.fixed) done.push(`Unicode maps rebuilt for ${r.fixed} font(s)`); uniLeft = r.unresolved; }
+  let root = L(cat.get(N('StructTreeRoot')));
+  const hasTags = root instanceof PDFDict && L(root.get(N('K')));
+  if(want.tags && !hasTags){ const s = autoTag(doc);
+    done.push(`Auto-tagged: ${[[s.H,'heading'],[s.P,'paragraph'],[s.L,'list'],[s.Table,'table'],[s.Formula,'formula'],[s.Figure,'figure'],[s.Caption,'caption'],[s.Form,'form field'],[s.Link,'link'],[s.Artifact,'artifact']].filter(x => x[0]).map(([n, w]) => `${n} ${w}${n > 1 ? 's' : ''}`).join(', ')}`);
+    if(s.Table) review.push(`${s.Table} table(s) were detected from column alignment and the first row was marked as headers. Check the cell boundaries and header cells.`);
+    if(s.Formula) review.push(`${s.Formula} equation(s) were tagged as Formula with an automatic spoken description. Check that each description reads the maths correctly.`);
+    if(s.captionAlts) review.push(`${s.captionAlts} figure(s) got alt text from their caption. Check that it describes what the image shows.`);
+    if(s.reordered) review.push(`Reading order was rearranged on ${s.reordered} page(s) with columns. Confirm the order in the tag tree.`);
+    if(s.headingsFixed) done.push(`Renumbered ${s.headingsFixed} heading level(s)`); }
+  else if(hasTags && (want.untagged || want.artintag || want.tagart || want.annots)){ const s = fixContent(doc, want); if(s.nest) done.push(`Fixed ${s.nest} nesting error(s)`); if(s.tagged || s.art) done.push(`Tagged ${s.tagged} and marked ${s.art} artifact item(s)`); if(s.annots) done.push(`Tagged ${s.annots} annotation(s)`); if(s.formulas) review.push(`${s.formulas} untagged equation(s) were tagged as Formula with an automatic description.`); }
+  root = L(cat.get(N('StructTreeRoot')));
+  if(root instanceof PDFDict && (want.headlevels || want.formulas)){ const r = fixStructure(doc, want); if(r.headings) done.push(`Renumbered ${r.headings} heading level(s)`); if(r.formulas || r.retagged){ done.push(`Formula tags: ${r.retagged} retagged, ${r.formulas} described`); review.push(`${r.formulas + r.retagged} formula description(s) were generated from the text. Superscripts may read as plain digits, so check each one.`); } }
+  if(want.fields){ const r = labelFields(doc); if(r.named || r.fromName) done.push(`Named ${r.named + r.fromName} form field(s)`); if(r.named) review.push(`${r.named} form field name(s) were matched from the nearest visible label.`); if(r.fromName) review.push(`${r.fromName} form field(s) had no visible label, so their internal field name was used. Write a clearer name.`); if(r.missing) review.push(`${r.missing} form field(s) have no label or name and need one written by hand.`); }
+  const title = (inputs.title || '').trim();
+  if(want.title && title){ doc.setTitle(title, {showInWindow:true}); done.push('Title'); }
+  if(want.ddt){ let vp = L(cat.get(N('ViewerPreferences'))); if(!(vp instanceof PDFDict)){ vp = ctx.obj({}); cat.set(N('ViewerPreferences'), vp); } vp.set(N('DisplayDocTitle'), PDFBool.True); done.push('DisplayDocTitle'); }
+  if(want.lang && inputs.lang){ doc.setLanguage(inputs.lang); done.push('Language'); }
+  if(want.marked && root instanceof PDFDict){ let mi = L(cat.get(N('MarkInfo'))); if(!(mi instanceof PDFDict)){ mi = ctx.obj({}); cat.set(N('MarkInfo'), mi); } mi.set(N('Marked'), PDFBool.True); }
+  const pages = doc.getPages();
+  if(want.tabs){ pages.forEach(p => { if(p.node.Annots()) p.node.set(N('Tabs'), N('S')); }); done.push('Tab order'); }
+  if(want.links){ pages.forEach(p => { const ann = p.node.Annots(); if(!ann) return; for(let i=0;i<ann.size();i++){ const an = L(ann.get(i)); if(!(an instanceof PDFDict) || nameStr(an.get(N('Subtype'))) !== 'Link' || txt(L(an.get(N('Contents'))))) continue;
+      const A = L(an.get(N('A'))); const uri = A instanceof PDFDict ? txt(L(A.get(N('URI')))) : '';
+      an.set(N('Contents'), PDFHexString.fromText(uri ? `Link to ${uri.replace(/^https?:\/\//,'').replace(/\/$/,'')}` : 'Go to a location in this document')); } }); done.push('Link descriptions'); }
+  if(want.alts && root instanceof PDFDict){ const figs = walkStruct(ctx, root, {}, new Map()).figures; let n = 0;
+    figs.forEach((f, i) => { const v = (inputs.alts[i] || '').trim(); if(v && !f.alt && !f.actual){ f.dict.set(N('Alt'), PDFHexString.fromText(v)); n++; } }); if(n) done.push(`Alt text for ${n} figure(s)`); }
+  if((want.pdfua && root instanceof PDFDict) || (want.title && title)){ upsertXmp(doc, want.title ? title : '', want.pdfua && root instanceof PDFDict); if(want.pdfua && root) done.push('PDF/UA identifier'); }
+  return {bytes: await doc.save({useObjectStreams:false}), done, uniLeft, review};
+}
+
+/* =========================================================
+   OCR
+   ========================================================= */
+function loadScript(src){
+  if(document.querySelector(`script[src="${src}"]`) && (src !== TESS_URL || window.Tesseract) && (src !== FONTKIT_URL || window.fontkit)) return Promise.resolve();
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Could not load ' + src)); document.head.appendChild(s); });
+}
+async function getFontkit(){ if(!window.fontkit) await loadScript(FONTKIT_URL); return window.fontkit; }
+let fontBytesP = null;
+function getFontBytes(){ return fontBytesP || (fontBytesP = getFontFile('LiberationSans-Regular.ttf').then(b => b ? b.slice().buffer : null)); }
+const timeout = (p, ms, label) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(label + ' timed out')), ms))]);
+let tess = null, tessErr = null, tessLog = null;
+async function getTess(){
+  if(tess) return tess; if(tessErr) throw tessErr;
+  try{
+    await loadScript(TESS_URL);
+    tessLog && tessLog({status:'loading English OCR model'});
+    const res = await fetch('tessdata/eng-traineddata-gz.b64.txt'); if(!res.ok) throw new Error('OCR model not found');
+    const b64 = (await res.text()).trim(); const raw = atob(b64); const data = new Uint8Array(raw.length); for(let i=0;i<raw.length;i++) data[i] = raw.charCodeAt(i);
+    tess = await timeout(Tesseract.createWorker([{code:'eng', data}], 1, {workerPath: TESS_WORKER, corePath: TESS_CORE, cacheMethod:'none', logger: m => tessLog && tessLog(m)}), 120000, 'Starting OCR');
+    return tess;
+  }catch(e){ tessErr = e; tess = null; throw e; }
+}
+async function ocrLines(canvas, onLog){
+  try{
+    tessLog = onLog; const w = await getTess(); const {data} = await timeout(w.recognize(canvas), 180000, 'OCR');
+    const lines = []; (data.blocks || []).forEach(b => (b.paragraphs || []).forEach(p => (p.lines || []).forEach(l => lines.push(l))));
+    if(!lines.length && data.lines) lines.push(...data.lines);
+    return {engine:'on-device OCR', lines: lines.filter(l => l.text && l.text.trim() && (l.confidence == null || l.confidence > 30)).map(l => ({text: l.text.trim(), b: l.bbox}))};
+  }catch(e){
+    if(!S.ai) throw new Error('The on-device OCR engine could not start in this view (' + (e.message || e) + ').');
+    onLog && onLog({status:'Using Claude vision OCR instead'});
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    const prompt = `You are an OCR engine. The image is ${canvas.width} x ${canvas.height} pixels. Return JSON only, in the form {"lines":[{"text":"...","box":[x0,y0,x1,y1]}]}, with one entry per printed line of text in reading order. "box" is the tight bounding box of that line in pixel coordinates of this image, with (x0,y0) the top-left corner. Transcribe exactly, including punctuation. No commentary.`;
+    let r; try{ r = await S.ai.json(prompt, {images:[blob], modelTier:'default'}); }catch(err){ throw new Error(err && err.code === 'not_granted' ? 'Claude vision OCR was not allowed for this page.' : 'Claude vision OCR did not respond.'); }
+    return {engine:'Claude vision OCR', lines: ((r && r.lines) || []).filter(l => l && l.text && Array.isArray(l.box) && l.box.length === 4).map(l => ({text: String(l.text).trim(), b: {x0:+l.box[0], y0:+l.box[1], x1:+l.box[2], y1:+l.box[3]}}))};
+  }
+}
+async function runOcr(bytes, pagesToRead, onMsg){
+  const pdf = await pdfjsLib.getDocument({data: bytes.slice(), isEvalSupported:false}).promise;
+  const doc = await PDFDocument.load(bytes, {updateMetadata:false}); const ctx = doc.context;
+  const fb = await getFontBytes(); let font, embedded = false;
+  if(fb){ try{ doc.registerFontkit(await getFontkit()); font = await doc.embedFont(fb, {subset:false}); embedded = true; }catch(e){ font = null; } }
+  if(!font) font = await doc.embedFont(StandardFonts.Helvetica);
+  let engine = '', done = 0, linesTotal = 0;
+  for(const n of pagesToRead.slice(0, 10)){
+    onMsg(`Rendering page ${n} for OCR…`);
+    const pg = await pdf.getPage(n); const vp = pg.getViewport({scale: 2.2});
+    const cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height); const g = cv.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, cv.width, cv.height);
+    await pg.render({canvasContext: g, viewport: vp}).promise;
+    const res = await ocrLines(cv, m => { if(m && m.status) onMsg(`Page ${n}: ${m.status}${m.progress ? ' ' + Math.round(m.progress*100) + '%' : ''}`); });
+    engine = res.engine;
+    const page = doc.getPage(n-1); page.node.normalize();
+    const fname = page.node.newFontDictionary('FOCR', font.ref);
+    let ops = '';
+    for(const l of res.lines){
+      const p1 = vp.convertToPdfPoint(l.b.x0, l.b.y1), p2 = vp.convertToPdfPoint(l.b.x1, l.b.y0);
+      const x0 = Math.min(p1[0], p2[0]), x1 = Math.max(p1[0], p2[0]), y0 = Math.min(p1[1], p2[1]), y1 = Math.max(p1[1], p2[1]); const h = y1 - y0;
+      if(h < 2 || x1 - x0 < 2) continue;
+      let text = l.text.replace(/\s+/g, ' ').trim(); if(!embedded) text = [...text].filter(ch => { try{ font.encodeText(ch); return true; }catch(e){ return false; } }).join('');
+      if(!text) continue;
+      const size = h * 0.78; let w, hex; try{ w = font.widthOfTextAtSize(text, size); hex = font.encodeText(text).toString(); }catch(e){ continue; }
+      const tz = Math.max(20, Math.min(400, (x1 - x0) / w * 100));
+      ops += `BT 3 Tr ${fname} ${f2(size)} Tf ${f2(tz)} Tz 1 0 0 1 ${f2(x0)} ${f2(y0 + h*0.2)} Tm ${hex} Tj ET\n`; linesTotal++;
+    }
+    if(ops){ const c = page.node.Contents(); const items = c instanceof PDFArray ? c.asArray() : [page.node.get(N('Contents'))];
+      page.node.set(N('Contents'), ctx.obj([ctx.register(ctx.flateStream('q\n')), ...items, ctx.register(ctx.flateStream('Q\n' + ops))])); done++; }
+  }
+  try{ pdf.destroy(); }catch(e){}
+  return {bytes: await doc.save({useObjectStreams:false}), pages: done, lines: linesTotal, engine};
+}
+
+/* =========================================================
+   Glyph recognition: identify unmapped glyphs from their shapes
+   ========================================================= */
+function glyphCanvas(font, gids, cell, cols, labels){
+  const lab = labels ? 24 : 0; const rows = Math.ceil(gids.length / cols);
+  const cv = document.createElement('canvas'); cv.width = cols * cell; cv.height = rows * (cell + lab); const g = cv.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, cv.width, cv.height);
+  const asc = font.ascent || font.unitsPerEm * 0.8, desc = font.descent || -font.unitsPerEm * 0.2; const sc = (cell * 0.74) / (asc - desc);
+  gids.forEach((gid, i) => {
+    const x = (i % cols) * cell, y = Math.floor(i / cols) * (cell + lab);
+    if(labels){ g.strokeStyle = '#b5b5b5'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, cell - 1, cell - 1); g.strokeStyle = '#e3a0a0'; g.beginPath(); g.moveTo(x + 2, y + cell*0.13 + asc*sc + 0.5); g.lineTo(x + cell - 2, y + cell*0.13 + asc*sc + 0.5); g.stroke(); g.fillStyle = '#c00000'; g.font = 'bold 15px sans-serif'; g.fillText(String(i + 1), x + 4, y + cell + 17); }
+    let glyph; try{ glyph = font.getGlyph(gid); }catch(e){ return; } if(!glyph) return;
+    const w = glyph.advanceWidth || (glyph.bbox ? glyph.bbox.maxX - glyph.bbox.minX : font.unitsPerEm / 2);
+    g.save(); g.translate(x + (cell - w * sc) / 2, y + cell * 0.13 + asc * sc); g.scale(sc, -sc); g.fillStyle = '#000000';
+    try{ g.fill(new Path2D(glyph.path.toSVG())); }catch(e){}
+    g.restore();
+  });
+  return cv;
+}
+async function recognizeGlyphSet(font, items, base, onMsg){
+  const map = new Map();
+  if(S.ai){
+    try{
+      const lim = await S.ai.limits();
+      if(lim && lim.images){
+        for(let i=0;i<items.length;i+=48){
+          const chunk = items.slice(i, i + 48); onMsg && onMsg(`Identifying glyphs ${i + 1}–${i + chunk.length} of ${items.length} in ${base}…`);
+          const cv = glyphCanvas(font, chunk.map(x => x.gid), 72, 8, true); const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+          const r = await S.ai.json(`The image shows ${chunk.length} glyphs from the font "${base}", one per grey box, numbered 1 to ${chunk.length} in red under each box. The pink line in each box is the baseline. Identify the Unicode character each glyph represents: letters, digits, punctuation, symbols, or ligatures such as "fi". Use the glyph's height against the baseline to tell case apart (o/O, s/S, c/C) and look closely at l, I and 1. Return JSON only, like {"1":"a","2":"B"}. Use "" for a blank box or a glyph you cannot identify.`, {images:[blob], modelTier:'default'});
+          chunk.forEach((it, k) => { const v = r && r[String(k + 1)]; if(typeof v === 'string' && v.length && v.length <= 4) map.set(it.code, v); });
+        }
+        return {map, engine:'Claude vision'};
+      }
+    }catch(e){ if(!(e && e.code === 'not_granted')) console.warn(e); }
+  }
+  const w = await getTess(); try{ await w.setParameters({tessedit_pageseg_mode:'10'}); }catch(e){}
+  let n = 0;
+  for(const it of items){ n++; if(n % 10 === 1) onMsg && onMsg(`Identifying glyph ${n} of ${items.length} in ${base}…`);
+    const cv = glyphCanvas(font, [it.gid], 140, 1, false); const {data} = await w.recognize(cv); const t = (data.text || '').trim();
+    if(t && t.length <= 2 && (data.confidence == null || data.confidence > 55)) map.set(it.code, t); }
+  try{ await w.setParameters({tessedit_pageseg_mode:'3'}); }catch(e){}
+  return {map, engine:'on-device OCR'};
+}
+async function recognizeGlyphs(bytes, onMsg, recognizer){
+  const doc = await PDFDocument.load(bytes, {updateMetadata:false}); const ctx = doc.context; const pages = doc.getPages(); const cache = new Map();
+  pages.forEach(p => { try{ scanOps(parseContent(pageContent(ctx, p)), pageEnv(ctx, p.node.Resources(), cache, 0)); }catch(e){} });
+  const fk = await getFontkit(); let fixed = 0, left = 0, engine = '';
+  for(const {f, key} of allFonts(ctx, pages)){
+    const used = key && cache.get(key) ? cache.get(key).used : new Set(); const ev = uniEval(ctx, f, used); if(ev.status === 'ok') continue;
+    const fd = fontDescriptor(ctx, f); const ff = fd && ctx.lookup(fd.get(N('FontFile2'))); if(!ff){ left += ev.bad.length; continue; }
+    let font; try{ font = fk.create(streamBytes(ff)); }catch(e){ left += ev.bad.length; continue; }
+    let c2g = null; if(ev.two){ const df = descendant(ctx, f); const m = df && ctx.lookup(df.get(N('CIDToGIDMap'))); if(m && m.dict) c2g = streamBytes(m); }
+    const t = ev.two ? null : ttfOf(ctx, f);
+    const gidOf = code => { if(ev.two) return c2g ? (code*2 + 1 < c2g.length ? (c2g[code*2] << 8) | c2g[code*2 + 1] : 0) : code;
+      if(t && t.cm.s30) return t.cm.s30.get(0xF000 + code) || t.cm.s30.get(code) || 0; if(t && t.cm.m10) return t.cm.m10.get(code) || 0; return code; };
+    const items = ev.bad.map(code => ({code, gid: gidOf(code)})).filter(x => x.gid > 0 && x.gid < font.numGlyphs);
+    left += ev.bad.length - items.length; if(!items.length) continue;
+    const res = await (recognizer || recognizeGlyphSet)(font, items, ev.base, onMsg); engine = res.engine;
+    const map = new Map(); if(ev.tu) for(const [c, u] of ev.tu) if(!BAD_U(u)) map.set(c, u);
+    if(!ev.two && ev.table) ev.table.forEach((u, c) => { if(u && !map.has(c)) map.set(c, u); });
+    let got = 0; items.forEach(it => { const u = res.map.get(it.code); if(u && !BAD_U(u)){ map.set(it.code, u); got++; } });
+    fixed += got; left += items.length - got;
+    if(got) f.set(N('ToUnicode'), ctx.register(ctx.flateStream(buildCMap([...map].sort((a, b) => a[0] - b[0]), ev.two ? 2 : 1))));
+  }
+  return {bytes: await doc.save({useObjectStreams:false}), fixed, left, engine};
+}
+
+/* =========================================================
+   Sample documents
+   ========================================================= */
+function wrapLines(font, text, size, width){ const out = []; let line = ''; for(const w of text.split(' ')){ const t = line ? line + ' ' + w : w; if(font.widthOfTextAtSize(t, size) > width && line){ out.push(line); line = w; } else line = t; } if(line) out.push(line); return out; }
+function chartPng(){
+  const c = document.createElement('canvas'); c.width = 640; c.height = 340; const g = c.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0,0,640,340); g.fillStyle = '#1b2b36'; g.font = 'bold 20px sans-serif'; g.fillText('Applications received by grade, 2026', 24, 36);
+  [['LKG',212],['Grade 1',168],['Grade 6',141],['Grade 9',97],['Grade 11',183]].forEach(([l,v],i) => { const x = 56 + i*116, h = v/220*220; g.fillStyle = '#2f7f95'; g.fillRect(x, 300-h, 70, h); g.fillStyle = '#1b2b36'; g.font = '15px sans-serif'; g.fillText(l, x, 324); g.fillText(String(v), x+20, 292-h); });
+  g.strokeStyle = '#9aa7af'; g.beginPath(); g.moveTo(40,300.5); g.lineTo(620,300.5); g.stroke();
+  return c.toDataURL('image/png');
+}
+async function makeUntagged(){
+  const doc = await PDFDocument.create({updateMetadata:false}); const ctx = doc.context;
+  const reg = await doc.embedFont(StandardFonts.Helvetica), bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const ink = rgb(.1,.15,.2), grey = rgb(.36,.42,.46);
+  const para = (page, text, y, size=11) => { for(const l of wrapLines(reg, text, size, 483)){ page.drawText(l, {x:56, y, size, font:reg, color:ink}); y -= size*1.55; } return y - 10; };
+  const chrome = (page, n) => { page.drawText('Greenfield Public School  |  Admissions 2026-27', {x:56, y:806, size:9, font:reg, color:grey}); page.drawLine({start:{x:56,y:798}, end:{x:539,y:798}, thickness:.8, color:grey}); page.drawText(`Page ${n} of 2`, {x:490, y:34, size:9, font:reg, color:grey}); };
+  const p1 = doc.addPage([595,842]); chrome(p1, 1); let y = 760;
+  p1.drawText('Annual Admissions Circular 2026-27', {x:56, y, size:22, font:bold, color:ink}); y -= 34;
+  y = para(p1, 'Admissions for the academic year 2026-27 open on 3 November 2026 for LKG to Grade 9 and Grade 11. Parents can collect application forms from the school office or apply online. Completed forms must reach the office by 15 December 2026.', y);
+  y = para(p1, 'Interaction sessions for shortlisted LKG applicants will be held on Saturdays in January 2027. Entrance assessments for Grades 6, 9 and 11 take place on 10 January 2027.', y);
+  const png = await doc.embedPng(chartPng()); const w = 420, h = w*340/640; p1.drawImage(png, {x:56, y:y-h, width:w, height:h}); y -= h + 28;
+  p1.drawText('Apply online: www.example.org/admissions', {x:56, y, size:11, font:reg, color:rgb(.05,.36,.45)});
+  const annot = ctx.register(ctx.obj({Type:'Annot', Subtype:'Link', Rect:[56, y-3, 290, y+12], Border:[0,0,0], A:{Type:'Action', S:'URI', URI:PDFString.of('https://www.example.org/admissions')}}));
+  p1.node.set(N('Annots'), ctx.obj([annot]));
+  const p2 = doc.addPage([595,842]); chrome(p2, 2); y = 760;
+  p2.drawText('Fee schedule 2026-27', {x:56, y, size:16, font:bold, color:ink}); y -= 28;
+  y = para(p2, 'LKG and UKG: Rs 48,000 per year. Grades 1 to 5: Rs 56,000 per year. Grades 6 to 10: Rs 64,000 per year. Grades 11 and 12: Rs 72,000 per year. Fees can be paid in three instalments.', y);
+  y -= 6; p2.drawText('Documents to submit', {x:56, y, size:13, font:bold, color:ink}); y -= 24;
+  for(const item of ['Birth certificate (original and one copy)', 'Two recent passport-size photographs', 'Report card from the previous school, for Grade 1 and above', 'Transfer certificate, for Grade 2 and above']){ p2.drawText('\u2022', {x:62, y, size:11, font:reg, color:ink}); p2.drawText(item, {x:76, y, size:11, font:reg, color:ink}); y -= 18; }
+  y -= 14; y = para(p2, 'Contact the admissions office on 0422 000 0000, Monday to Saturday, 9 am to 1 pm.', y);
+  return await doc.save({useObjectStreams:false});
+}
+async function makeBroken(){
+  const doc = await PDFDocument.create({updateMetadata:false}); const ctx = doc.context;
+  const fr = await doc.embedFont(StandardFonts.Helvetica), fb = await doc.embedFont(StandardFonts.HelveticaBold);
+  let f3 = null; const lib = await getFontBytes();
+  if(lib){ try{ doc.registerFontkit(await getFontkit()); f3 = await doc.embedFont(lib, {subset:false}); }catch(e){ f3 = null; } }
+  const page = doc.addPage([595,842]);
+  page.node.setFontDictionary(N('F1'), fr.ref); page.node.setFontDictionary(N('F2'), fb.ref); if(f3) page.node.setFontDictionary(N('F3'), f3.ref);
+  const enc = (f, s) => f.encodeText(s).toString();
+  let c = '';
+  c += `/H1 <</MCID 0>> BDC BT /F2 20 Tf 56 770 Td ${enc(fb,'Staff Circular: Examination Duty 2026')} Tj ET EMC\n`;
+  c += `/P <</MCID 1>> BDC BT /F1 11 Tf 56 738 Td ${enc(fr,'Invigilation duty for the term-end examinations starts on 2 December 2026.')} Tj ET\n/Artifact BMC 0.75 G 0.6 w 56 728 m 539 728 l S EMC\nEMC\n`;
+  c += `BT /F1 11 Tf 56 706 Td ${enc(fr,'Report to the examination cell by 8.30 am on each of your duty days.')} Tj ET\n`;
+  c += `/P <</MCID 2>> BDC BT /${f3?'F3':'F1'} 11 Tf 56 684 Td ${enc(f3||fr,'Questions: write to exams@example.org or call extension 214.')} Tj ET EMC\n`;
+  c += `0.93 g 56 560 483 90 re f\n0 g BT /F1 11 Tf 68 616 Td ${enc(fr,'The duty roster and room allocation will be shared on the staff portal.')} Tj ET\n`;
+  c += `/Artifact BMC BT /F1 9 Tf 56 40 Td ${enc(fr,'Page 1 of 1')} Tj ET\n/P <</MCID 3>> BDC BT /F1 9 Tf 300 40 Td ${enc(fr,'Internal circular - not for distribution')} Tj ET EMC\nEMC\n`;
+  page.node.set(N('Contents'), ctx.register(ctx.flateStream(c)));
+  const rootRef = ctx.nextRef(); const docRef = ctx.nextRef();
+  const els = ['H1','P','P','P'].map(s => ctx.register(ctx.obj({Type:'StructElem', S:s, P:docRef, Pg:page.ref, K: ctx.obj([ctx.obj(0)])})));
+  els.forEach((r, i) => ctx.lookup(r).set(N('K'), ctx.obj([ctx.obj(i)])));
+  ctx.assign(docRef, ctx.obj({Type:'StructElem', S:'Document', P:rootRef, K: ctx.obj(els)}));
+  ctx.assign(rootRef, ctx.obj({Type:'StructTreeRoot', K:docRef, ParentTree: ctx.obj({Nums: ctx.obj([ctx.obj(0), ctx.obj(els)])}), ParentTreeNextKey: 1}));
+  page.node.set(N('StructParents'), ctx.obj(0)); doc.catalog.set(N('StructTreeRoot'), rootRef); doc.catalog.set(N('MarkInfo'), ctx.obj({Marked:true}));
+  let bytes = await doc.save({useObjectStreams:false});
+  if(f3){ const d2 = await PDFDocument.load(bytes, {updateMetadata:false}); const p = d2.getPage(0); const fd = d2.context.lookup(p.node.Resources().get(N('Font')));
+    for(const [, v] of fd.entries()){ const f = d2.context.lookup(v); if(nameStr(f.get(N('Subtype'))) === 'Type0') f.delete(N('ToUnicode')); }
+    bytes = await d2.save({useObjectStreams:false}); }
+  return bytes;
+}
+function scanImage(){
+  const c = document.createElement('canvas'); c.width = 1240; c.height = 1754; const g = c.getContext('2d');
+  g.fillStyle = '#fdfdfb'; g.fillRect(0,0,c.width,c.height); g.fillStyle = '#161616'; g.textBaseline = 'alphabetic';
+  const center = (t, y, f) => { g.font = f; g.fillText(t, (c.width - g.measureText(t).width)/2, y); };
+  center('RIVERSIDE COLLEGE OF ENGINEERING', 170, 'bold 46px Georgia, "Times New Roman", serif');
+  center('Office of the Controller of Examinations', 226, '30px Georgia, "Times New Roman", serif');
+  g.fillRect(120, 258, 1000, 3);
+  center('NOTICE', 350, 'bold 42px Georgia, "Times New Roman", serif');
+  g.font = '30px Georgia, "Times New Roman", serif'; g.fillText('Date: 20 October 2026', 120, 420);
+  const para = (text, y) => { g.font = '30px Georgia, "Times New Roman", serif'; let line = ''; for(const w of text.split(' ')){ const t = line ? line + ' ' + w : w; if(g.measureText(t).width > 1000 && line){ g.fillText(line, 120, y); y += 46; line = w; } else line = t; } if(line){ g.fillText(line, 120, y); y += 46; } return y + 24; };
+  let y = para('The end-semester examinations for all undergraduate programmes will begin on 24 November 2026. The detailed timetable is available on the college website and on the notice board outside the examination cell.', 500);
+  g.font = 'bold 34px Georgia, "Times New Roman", serif'; g.fillText('Instructions to candidates', 120, y + 10); y += 70;
+  ['1. Carry your hall ticket and college identity card to every examination.', '2. Reach the examination hall at least 20 minutes before the start time.', '3. Mobile phones and smart watches are not allowed inside the hall.', '4. Use only blue or black ink pens for writing answers.'].forEach(t => { y = para(t, y) - 14; });
+  y = para('Students who need a scribe or extra time should apply to the examination cell before 10 November 2026.', y + 20);
+  g.font = 'bold 30px Georgia, "Times New Roman", serif'; g.fillText('Controller of Examinations', 760, y + 120);
+  return c.toDataURL('image/jpeg', 0.88);
+}
+async function makeScanned(){
+  const doc = await PDFDocument.create({updateMetadata:false}); const img = await doc.embedJpg(scanImage());
+  const p = doc.addPage([595,842]); p.drawImage(img, {x:0, y:0, width:595, height:842});
+  return await doc.save({useObjectStreams:false});
+}
+function graphPng(){
+  const c = document.createElement('canvas'); c.width = 640; c.height = 360; const g = c.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, 640, 360); g.strokeStyle = '#1b2b36'; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(70, 30); g.lineTo(70, 300); g.lineTo(610, 300); g.stroke();
+  g.strokeStyle = '#d6dde1'; g.lineWidth = 1; for(let i=1;i<=5;i++){ g.beginPath(); g.moveTo(70 + i*100, 300); g.lineTo(70 + i*100, 40); g.stroke(); g.beginPath(); g.moveTo(70, 300 - i*50); g.lineTo(600, 300 - i*50); g.stroke(); }
+  g.strokeStyle = '#c0392b'; g.lineWidth = 4; g.beginPath(); g.moveTo(70, 300); g.lineTo(570, 50); g.stroke();
+  g.fillStyle = '#1b2b36'; g.font = '16px sans-serif'; for(let i=0;i<=5;i++){ g.fillText(String(i), 64 + i*100, 322); g.fillText(String(i*2), 44, 305 - i*50); }
+  g.fillText('time t (s)', 300, 350); g.save(); g.translate(20, 220); g.rotate(-Math.PI/2); g.fillText('velocity v (m/s)', 0, 0); g.restore();
+  return c.toDataURL('image/png');
+}
+function logoPng(){ const c = document.createElement('canvas'); c.width = 64; c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#0d5d72'; g.beginPath(); g.arc(32, 32, 30, 0, Math.PI*2); g.fill(); g.fillStyle = '#ffffff'; g.font = 'bold 28px sans-serif'; g.fillText('R', 22, 42); return c.toDataURL('image/png'); }
+async function makeWorksheet(){
+  const doc = await PDFDocument.create({updateMetadata:false}); const ctx = doc.context;
+  const reg = await doc.embedFont(StandardFonts.Helvetica), bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  let mf = reg; const lib = await getFontBytes(); if(lib){ try{ doc.registerFontkit(await getFontkit()); mf = await doc.embedFont(lib, {subset:false}); }catch(e){ mf = reg; } }
+  const ink = rgb(.1,.15,.2), grey = rgb(.38,.43,.47);
+  const page = doc.addPage([595, 842]); let y = 800;
+  const logo = await doc.embedPng(logoPng()); page.drawImage(logo, {x:56, y:796, width:20, height:20});
+  page.drawText('Riverside College of Engineering  |  Department of Physics', {x:82, y:802, size:9, font:reg, color:grey});
+  y = 760; page.drawText('Unit 4 Worksheet: Motion and Energy', {x:56, y, size:20, font:bold, color:ink}); y -= 30;
+  // form fields with visible labels
+  const form = doc.getForm();
+  [['Student name', 'student.name'], ['Roll number', 'student.roll'], ['Date of submission', 'student.date']].forEach(([label, id]) => {
+    page.drawText(label, {x:56, y, size:11, font:reg, color:ink});
+    const f = form.createTextField(id); f.addToPage(page, {x:180, y:y-5, width:220, height:18, borderWidth:1, borderColor:rgb(.55,.6,.64)}); y -= 26; });
+  const cb = form.createCheckBox('declaration'); cb.addToPage(page, {x:56, y:y-2, width:11, height:11, borderWidth:1, borderColor:rgb(.55,.6,.64)});
+  page.drawText('I confirm this is my own work', {x:74, y, size:11, font:reg, color:ink}); y -= 34;
+  page.drawText('Key equations', {x:56, y, size:14, font:bold, color:ink}); y -= 26;
+  // equations: pieces of [text, 'sup'|'sub'|null]
+  const eq = pieces => { let x = 76; for(const [t, k] of pieces){ const size = k ? 9 : 13; const dy = k === 'sup' ? 6 : k === 'sub' ? -3 : 0; page.drawText(t, {x, y: y + dy, size, font: mf, color: ink}); x += mf.widthOfTextAtSize(t, size); } y -= 26; };
+  eq([['E = mc'], ['2', 'sup']]);
+  eq([['v'], ['2', 'sup'], [' = u'], ['2', 'sup'], [' + 2as']]);
+  eq([['s = ut + ½at'], ['2', 'sup']]);
+  eq([['F = ∑ m'], ['i', 'sub'], ['a'], ['i', 'sub']]);
+  eq([['c = √(a'], ['2', 'sup'], [' + b'], ['2', 'sup'], [')']]);
+  y -= 8; page.drawText('SI units', {x:56, y, size:14, font:bold, color:ink}); y -= 24;
+  const cols = [56, 190, 260, 440]; const rows = [['Quantity','Symbol','SI unit','Unit symbol'], ['Velocity','v','metre per second','m/s'], ['Acceleration','a','metre per second squared','m/s²'], ['Force','F','newton','N'], ['Energy','E','joule','J']];
+  rows.forEach((row, ri) => { row.forEach((cell, ci) => page.drawText(cell, {x: cols[ci], y, size:11, font: ri === 0 ? bold : reg, color: ink})); if(ri === 0) page.drawLine({start:{x:56, y:y-5}, end:{x:539, y:y-5}, thickness:.7, color:grey}); y -= 18; });
+  y -= 14; page.drawText('Graph', {x:56, y, size:14, font:bold, color:ink}); y -= 12;
+  const gp = await doc.embedPng(graphPng()); const gw = 300, gh = gw*360/640; page.drawImage(gp, {x:56, y: y - gh, width: gw, height: gh}); y -= gh + 16;
+  page.drawText('Figure 1: Velocity–time graph of a car accelerating uniformly from rest to 10 m/s in 5 s', {x:56, y, size:10, font:reg, color:grey}); y -= 30;
+  page.drawText('Questions', {x:56, y, size:14, font:bold, color:ink}); y -= 22;
+  ['1.  Use the graph to find the acceleration of the car.', '2.  How far does the car travel in the first 5 s?', '3.  A 2 kg trolley accelerates at 3 m/s². Find the resultant force on it.'].forEach(q => { page.drawText(q, {x:56, y, size:11, font:reg, color:ink}); y -= 18; });
+  page.drawText('Page 1 of 1', {x:490, y:34, size:9, font:reg, color:grey});
+  return await doc.save({useObjectStreams:false});
+}
+const SAMPLES = {worksheet:['physics-worksheet-unit4.pdf', makeWorksheet], untagged:['greenfield-admissions-circular.pdf', makeUntagged], broken:['staff-circular-exam-duty.pdf', makeBroken], scanned:['riverside-exam-notice-scan.pdf', makeScanned]};
+async function loadSample(key){ if(S.busy) return; const [name, make] = SAMPLES[key]; msg('Building the sample…', 'work'); try{ await loadPdf(await make(), name, key); }catch(e){ console.error(e); msg('The sample could not be built. Open a PDF instead.', 'err'); } }
+
+/* =========================================================
+   Flow
+   ========================================================= */
+function msg(t, kind){ const m = $('msg'); m.textContent = t || ''; m.className = kind || ''; }
+function setBusy(b){ S.busy = b; document.body.classList.toggle('busy', b); }
+async function loadPdf(bytes, name, sampleKey){
+  setBusy(true); msg('Checking ' + name + '…', 'work'); S.step = 2; renderSteps();
+  try{
+    if(S.pdfjs){ try{ S.pdfjs.destroy(); }catch(e){} }
+    const text = await textScan(bytes); const a = await analyze(bytes, text);
+    S.pdfjs = text.pdf || null; S.textCur = text;
+    Object.assign(S, {name, sample: sampleKey || '', orig: bytes, cur: bytes, before: a, after: null, uniTried: false, review: []});
+    S.inputs = {title: a.title || text.guess || name.replace(/\.pdf$/i,'').replace(/[-_]+/g,' '), lang: a.lang || 'en-IN', alts:{}};
+    S.step = a.checks.some(c => c.status !== 'pass' && c.fix && c.fix.kind !== 'next') ? 3 : 4;
+    render(); msg(`Checked ${a.pages} page(s). ${a.checks.filter(c => c.status === 'fail').length} checkpoints failed.`);
+  }catch(e){ console.error(e); msg('This file could not be read as a PDF. Check that it opens in a PDF viewer and try again.', 'err'); S.step = 1; renderSteps(); }
+  setBusy(false);
+}
+async function aiAltFor(fig){
+  const text = ((S.textCur && S.textCur.sampleText) || '').slice(0, 3000); let images = null;
+  try{ const lim = await S.ai.limits(); if(lim && lim.images){ const im = await pageImage(fig.page); if(im) images = [im]; } }catch(e){}
+  const pageText = (text.split('\n').find(l => l.startsWith(`[Page ${fig.page}]`)) || '').slice(0, 1500);
+  const prompt = `Write alt text for the main figure (chart, photo, diagram or illustration) on page ${fig.page} of a PDF. One or two plain sentences, under 220 characters. Say what it shows and its key values or takeaway. Do not start with "Image of". Reply with the alt text only.\n\nText on the page:\n<<<${pageText}>>>`;
+  const out = await S.ai(prompt, images ? {images, modelTier:'quick'} : {modelTier:'quick'});
+  return out.text.trim().replace(/^["“]|["”]$/g, '');
+}
+async function runFix(ids, opts){
+  if(S.busy) return; opts = opts || {};
+  const a = S.after || S.before;
+  if(a.encrypted){ msg('Encrypted files cannot be changed. Remove the restriction first.', 'err'); return; }
+  const want = {}; ids.forEach(i => want[i] = true);
+  const tagged = a.struct && a.struct.count;
+  if(!tagged && (want.marked || want.pdfua || want.untagged || want.headings || want.annots || want.formulas || want.headlevels)) want.tags = true;
+  if(want.title && !S.inputs.title.trim()){ msg('Enter a title first.', 'err'); return; }
+  if(want.alts && !Object.values(S.inputs.alts).some(v => v && v.trim())){ msg('Write alt text for at least one figure first.', 'err'); return; }
+  const wantUA = want.pdfua; delete want.pdfua;
+  setBusy(true); msg('Applying fixes…', 'work');
+  const review = [];
+  try{
+    let bytes = S.cur, text = S.textCur; const notes = [];
+    if(want.ocr){ const pagesToRead = (a.text && a.text.empty) || []; const r = await runOcr(bytes, pagesToRead, t => msg(t, 'work')); bytes = r.bytes; notes.push(`OCR read ${r.lines} line(s) on ${r.pages} page(s) with ${r.engine}`); review.push(`OCR text was added with ${r.engine}. Compare it with the page image for misread words.`); text = null; }
+    msg('Updating structure and metadata…', 'work');
+    if(Object.keys(want).length){ const r = await applyFixes(bytes, want, S.inputs); bytes = r.bytes; notes.push(...r.done); review.push(...r.review);
+      if(want.unicode && r.uniLeft){
+        msg(`Identifying ${r.uniLeft} unmapped glyph(s) from their shapes…`, 'work');
+        try{ const g = await recognizeGlyphs(bytes, t => msg(t, 'work')); bytes = g.bytes;
+          if(g.fixed){ notes.push(`Identified ${g.fixed} glyph(s) from their shapes with ${g.engine}`); review.push(`${g.fixed} character(s) were identified from glyph shapes. Spot-check the text in the tag tree.`); }
+          if(g.left) notes.push(`${g.left} glyph(s) could not be identified`); }
+        catch(e){ notes.push(`${r.uniLeft} glyph(s) have no Unicode data and glyph recognition could not run here (${e.message || e})`); }
+      } }
+    if(!text){ text = await textScan(bytes); try{ text.pdf && text.pdf.destroy(); }catch(e){} }
+    S.cur = bytes; S.textCur = text; if(want.unicode) S.uniTried = true;
+    let after = await analyze(bytes, text);
+    if(opts.all && S.ai && after.struct && after.struct.figures.some(f => !f.alt && !f.actual)){
+      const figs = after.struct.figures; const alts = {}; let n = 0;
+      for(let i=0;i<figs.length && n<12;i++){ if(figs[i].alt || figs[i].actual) continue; msg(`Writing alt text for figure ${i + 1} with AI…`, 'work'); try{ alts[i] = await aiAltFor(figs[i]); n++; }catch(e){ if(e && e.code === 'not_granted') break; } }
+      if(n){ const r = await applyFixes(bytes, {alts:true}, {alts}); bytes = r.bytes; S.cur = bytes; after = await analyze(bytes, text); notes.push(`AI wrote alt text for ${n} figure(s)`); review.push(`${n} figure description(s) were written by AI. Check each one against the image.`); }
+    }
+    if(wantUA){ const blockers = after.checks.filter(c => c.status === 'fail' && c.id !== 'pdfua');
+      if(!blockers.length && after.struct){ const r = await applyFixes(bytes, {pdfua:true}, S.inputs); bytes = r.bytes; S.cur = bytes; after = await analyze(bytes, text); notes.push('PDF/UA identifier added because every machine check now passes'); review.push('The PDF/UA identifier was added after all machine checks passed. Confirm with PAC 2024 and a screen reader before publishing the file as conformant.'); }
+      else notes.push(`PDF/UA identifier not added yet: ${blockers.length} check(s) still fail (${blockers.slice(0, 3).map(b => b.title.toLowerCase()).join('; ')})`); }
+    S.after = after; S.inputs.alts = {};
+    S.review = [...new Set([...(S.review || []), ...review])];
+    S.step = 4; render();
+    const missing = S.after.checks.find(c => c.id === 'alts' && c.status === 'fail');
+    msg((notes.length ? notes.join('. ') + '.' : 'Nothing needed changing.') + ` Remaining: ${S.after.checks.filter(x=>x.status==='fail').length} fail, ${S.after.checks.filter(x=>x.status==='warn').length} warn.` + (missing ? ' Figures still need alt text below.' : ''));
+  }catch(e){ console.error(e); msg('The fix could not be applied: ' + (e.message || e), 'err'); }
+  setBusy(false);
+}
+function fixAll(){
+  const a = S.after || S.before;
+  let ids = a.checks.filter(c => c.status !== 'pass' && c.fix && c.fix.kind !== 'next').flatMap(c => c.fix.via ? [c.fix.via, c.id] : [c.id]);
+  if(ids.includes('alts') && !Object.values(S.inputs.alts).some(v => v && v.trim())) ids = ids.filter(i => i !== 'alts');
+  if(ids.includes('title') && !S.inputs.title.trim()) ids = ids.filter(i => i !== 'title');
+  ids = [...new Set(ids)];
+  if(!ids.length){ msg('No auto-fixable issues left. Remaining items are listed under manual review.'); return; }
+  runFix(ids, {all:true});
+}
+
+/* =========================================================
+   Rendering
+   ========================================================= */
+function renderSteps(){ document.querySelectorAll('#steps li').forEach(li => { const n = +li.dataset.step; li.className = n < S.step ? 'done' : n === S.step ? 'now' : ''; if(n === S.step) li.setAttribute('aria-current','step'); else li.removeAttribute('aria-current'); }); }
+function ring(v, label){
+  const r = 34, c = 2*Math.PI*r, col = v >= 90 ? 'var(--pass)' : v >= 60 ? 'var(--warn)' : 'var(--fail)';
+  return `<div class="ring"><svg width="88" height="88" viewBox="0 0 88 88" role="img" aria-label="${label} score ${v} percent"><circle cx="44" cy="44" r="${r}" fill="none" stroke="var(--sunk)" stroke-width="9"/><circle class="v" cx="44" cy="44" r="${r}" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c*(1-v/100)).toFixed(1)}" transform="rotate(-90 44 44)"/><text x="44" y="50" text-anchor="middle" font-family="var(--f-display)" font-weight="800" font-size="20" fill="var(--ink)">${v}%</text></svg><span class="lbl">${label}</span></div>`;
+}
+const kb = n => n > 1048576 ? (n/1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n/1024)) + ' KB';
+const roleCls = r => /^H\d?$/.test(r) ? 'h' : r === 'Figure' ? 'fig' : r === 'Link' ? 'lnk' : /^(L|LI|Lbl|LBody)$/.test(r) ? 'lst' : '';
+function treeHtml(nodes, depth){
+  if(!nodes.length || depth > 10) return '';
+  return '<ul>' + nodes.map(n => `<li><span class="role ${roleCls(n.r)}">${esc(n.r)}</span>${n.t ? `<span class="tt">${esc(n.t.trim().slice(0, 110))}${n.t.length > 110 ? '…' : ''}</span>` : ''}${n.alt ? ` <span class="alt">Alt: ${esc(n.alt.slice(0, 80))}</span>` : ''}${n.objr ? ' <span class="tt">(annotation)</span>' : ''}${treeHtml(n.kids, depth+1)}</li>`).join('') + '</ul>';
+}
+function render(){
+  renderSteps();
+  document.querySelectorAll('[data-sample]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sample === S.sample)));
+  const b = S.before; if(!b) return; const a = S.after || b;
+  $('fileInfo').innerHTML = `<span class="eyebrow">Document</span><h2>${esc(S.name)}${S.sample?'<span class="tag">SAMPLE</span>':''}</h2>
+    <dl><dt>Pages</dt><dd>${a.pages}</dd><dt>Size</dt><dd>${kb(S.cur.byteLength)}</dd><dt>PDF version</dt><dd>${esc(a.version)}</dd><dt>Tags</dt><dd>${a.struct && a.struct.count ? a.struct.count + ' elements' : 'None'}</dd><dt>Producer</dt><dd>${esc(a.producer || '—')}</dd></dl>`;
+  const c = k => a.checks.filter(x => x.status === k).length; const nx = a.checks.filter(x => x.status !== 'pass' && x.fix && x.fix.kind === 'next').length;
+  $('scoreBox').innerHTML = `<p class="claim">Automated heuristic checks only. No percentage score is shown: it would imply a conformance level this tool cannot establish. Validate the result in the AccessFix validator, PAC or veraPDF.</p>
+    <p class="tally"><span class="t-fail">${c('fail')} fail</span><span class="t-warn">${c('warn')} warn</span><span class="t-pass">${c('pass')} pass</span>${nx ? `<span class="t-next">${nx} next phase</span>` : ''}</p>`;
+  $('btnDownload').disabled = !S.after; $('btnDownload').title = !S.after ? 'Apply a fix first' : '';
+  $('btnReset').disabled = !S.after; $('btnReport').disabled = false;
+  const prev = Object.fromEntries(b.checks.map(x => [x.id, x.status]));
+  const ai = !!S.ai;
+  const groups = ['Document','Structure','Content','Forms','Navigation'];
+  let html = groups.map(g => {
+    const items = a.checks.filter(x => x.group === g); const p = items.filter(x => x.status === 'pass').length;
+    if(!items.length) return '';
+    return `<div class="group"><div class="group-h"><h3>${g === 'Forms' ? 'Forms and annotations' : g}</h3><span>${p}/${items.length} passed</span></div><ul class="list">${items.map(x => {
+      const icon = x.status === 'pass' ? '✓' : x.status === 'warn' ? '!' : '✕'; const lbl = x.status === 'pass' ? 'Pass' : x.status === 'warn' ? 'Warning' : 'Fail';
+      const fixed = S.after && prev[x.id] !== 'pass' && x.status === 'pass';
+      let fix = '';
+      if(x.status !== 'pass' && x.fix){
+        const k = x.fix.kind;
+        if(k === 'auto') fix = `<div class="fix"><div class="fixrow"><button class="btn sm" data-fix="${x.fix.via || x.id}">${esc(x.fix.label || 'Fix')}</button></div></div>`;
+        else if(k === 'title') fix = `<div class="fix"><div class="fixrow"><label for="in-title">Document title</label><input id="in-title" data-in="title" value="${esc(S.inputs.title)}">${ai?'<button class="btn sm ai" data-ai="title">Suggest with AI</button>':''}<button class="btn sm" data-fix="title">Apply</button></div></div>`;
+        else if(k === 'lang') fix = `<div class="fix"><div class="fixrow"><label for="in-lang">Main language of the text</label><select id="in-lang" data-in="lang">${[['en-IN','English (India)'],['en-US','English (US)'],['en-GB','English (UK)'],['en','English'],['ta','Tamil'],['hi','Hindi'],['ar','Arabic'],['fr','French'],['de','German'],['es','Spanish']].map(([v,t]) => `<option value="${v}"${v===S.inputs.lang?' selected':''}>${t} (${v})</option>`).join('')}</select><button class="btn sm" data-fix="lang">Apply</button></div></div>`;
+        else if(k === 'alts') fix = `<div class="fix">${a.struct.figures.map((f, i) => f.alt || f.actual ? '' : `<div class="fixrow"><label for="in-alt-${i}">Figure ${i+1} on page ${f.page}</label><input id="in-alt-${i}" data-in="alt" data-i="${i}" placeholder="Describe what the image shows" value="${esc(S.inputs.alts[i] || '')}">${ai?`<button class="btn sm ai" data-ai="alt" data-i="${i}">Suggest with AI</button>`:''}</div>`).join('')}<div class="fixrow"><button class="btn sm" data-fix="alts">Apply alt text</button></div></div>`;
+        else if(k === 'next') fix = `<div class="fix"><span class="chip-next">Next phase · ${esc(x.fix.label)}</span></div>`;
+      }
+      return `<li class="check s-${x.status}"><span class="pill"><i aria-hidden="true">${icon}</i>${lbl}</span><div><div class="c-title">${esc(x.title)}${fixed?'<span class="fixed">FIXED</span>':''}<span class="c-ref">${esc(x.ref)}</span></div><p class="c-detail">${esc(x.detail)}</p>${fix}</div></li>`;
+    }).join('')}</ul></div>`;
+  }).join('');
+  const manual = [...(S.review || []), ...a.checks.filter(x => x.status !== 'pass' && (!x.fix || x.fix.kind === 'next' || x.status === 'warn')).map(x => `${x.title}: ${x.detail}`),
+    'Before claiming conformance, validate the file with PAC 2024 (or veraPDF) and read it with a screen reader such as NVDA. These automated checks cover machine-testable rules only.'];
+  html += `<div class="review"><h3>Manual review before sign-off</h3><p class="review-sub">Items the tool could not settle automatically, or changes a person should confirm.</p><ul>${[...new Set(manual)].map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`;
+  if(a.struct && a.struct.tree.length) html += `<details class="tree"${S.after ? ' open' : ''}><summary>Tag tree<span>${a.struct.count} elements${a.struct.count > 600 ? ' · first 600 shown' : ''}</span></summary><div class="tree-body">${treeHtml(a.struct.tree, 0)}</div></details>`;
+  $('checks').innerHTML = html;
+}
+
+/* =========================================================
+   AI suggestions
+   ========================================================= */
+async function pageImage(n){
+  const pdf = await pdfjsLib.getDocument({data: S.cur.slice(), isEvalSupported:false}).promise;
+  try{ const page = await pdf.getPage(n); const vp = page.getViewport({scale:1.25});
+    const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height; const g = cv.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0,0,cv.width,cv.height);
+    await page.render({canvasContext:g, viewport:vp}).promise; return await new Promise(r => cv.toBlob(r, 'image/png')); }
+  finally{ try{ pdf.destroy(); }catch(e){} }
+}
+async function aiSuggest(kind, i, btn){
+  if(!S.ai) return; btn.disabled = true; const old = btn.textContent; btn.textContent = 'Thinking…';
+  try{
+    const a = S.after || S.before; const text = ((S.textCur && S.textCur.sampleText) || '').slice(0, 3000); let out;
+    if(kind === 'title'){
+      out = await S.ai(`Suggest a concise, descriptive document title (under 80 characters) for an accessible PDF. Use the document's own wording where possible. Reply with the title only, no quotes.\n\nDocument text:\n"""${text}"""`, {modelTier:'quick'});
+      S.inputs.title = out.text.trim().replace(/^["“]|["”]$/g, '');
+    } else {
+      S.inputs.alts[i] = await aiAltFor(a.struct.figures[i]);
+    }
+    render(); msg('AI suggestion added. Review it, then select Apply.');
+  }catch(e){ btn.disabled = false; btn.textContent = old; msg(e && e.code === 'not_granted' ? 'AI suggestions were not allowed for this page.' : 'The AI suggestion did not come through. Try again in a moment.', 'err'); }
+}
+
+/* =========================================================
+   Export
+   ========================================================= */
+function saveLocal(filename, data, type){
+  const url = URL.createObjectURL(new Blob([data], {type})); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+async function download(){
+  if(!S.after) return;
+  if(!S.downloads){ saveLocal(S.name.replace(/\.pdf$/i,'') + '-accessible.pdf', S.cur, 'application/pdf'); msg('Fixed PDF saved.'); return; }
+  try{ await S.downloads.save({filename: S.name.replace(/\.pdf$/i,'') + '-accessible.pdf', data: new Blob([S.cur])}); msg('Fixed PDF saved.'); }
+  catch(e){ msg(e && e.code === 'declined' ? 'Download cancelled.' : 'The file could not be saved here.', e && e.code !== 'declined' ? 'err' : ''); }
+}
+async function report(){
+  const b = S.before, a = S.after; if(!b) return;
+  const q = s => '"' + String(s).replace(/"/g,'""') + '"';
+  const rows = [['Group','Checkpoint','Reference','Before','After','Details']].concat(b.checks.map(c => { const af = a ? a.checks.find(x => x.id === c.id) : null; return [c.group, c.title, c.ref, c.status, af ? af.status : '', (af || c).detail]; }));
+  rows.push([], ['Counts (fail/warn/pass)', '', '', b.checks.filter(x=>x.status==='fail').length+'/'+b.checks.filter(x=>x.status==='warn').length+'/'+b.checks.filter(x=>x.status==='pass').length, a ? a.checks.filter(x=>x.status==='fail').length+'/'+a.checks.filter(x=>x.status==='warn').length+'/'+a.checks.filter(x=>x.status==='pass').length : '', S.name]);
+  rows.push([], ['Manual review']); (S.review || []).forEach(t => rows.push(['', t]));
+  rows.push(['', 'Automated checks only. Not a PDF/UA or WCAG conformance claim. Validate with PAC 2024 and a screen reader.']);
+  const csv = rows.map(r => r.map(q).join(',')).join('\n'); const fn = S.name.replace(/\.pdf$/i,'') + '-accessibility-report.csv';
+  if(!S.downloads){ saveLocal(fn, csv, 'text/csv'); msg('Report saved.'); return; }
+  try{ await S.downloads.save({filename: fn, data: csv}); msg('Report saved.'); }
+  catch(e){ msg(e && e.code === 'declined' ? 'Download cancelled.' : 'The report could not be saved here.', e && e.code !== 'declined' ? 'err' : ''); }
+}
+
+/* =========================================================
+   Events
+   ========================================================= */
+document.addEventListener('click', e => {
+  const f = e.target.closest('[data-fix]'); if(f){ runFix([f.dataset.fix]); return; }
+  const ai = e.target.closest('[data-ai]'); if(ai){ aiSuggest(ai.dataset.ai, +ai.dataset.i, ai); return; }
+  const sm = e.target.closest('[data-sample]'); if(sm) loadSample(sm.dataset.sample);
+});
+document.addEventListener('input', e => { const t = e.target; if(t.dataset.in === 'title') S.inputs.title = t.value; else if(t.dataset.in === 'lang') S.inputs.lang = t.value; else if(t.dataset.in === 'alt') S.inputs.alts[t.dataset.i] = t.value; });
+document.addEventListener('change', e => { if(e.target.dataset.in === 'lang') S.inputs.lang = e.target.value; });
+$('btnFixAll').onclick = fixAll; $('btnDownload').onclick = download;
+$('btnSend').onclick = async () => { try{ const fd = new FormData(); fd.append('file', new Blob([S.cur], {type:'application/pdf'}), S.name.replace(/\.pdf$/i,'') + '-tagged.pdf'); const r = await fetch('/api/documents', {method:'POST', body: fd}); const j = await r.json(); if(!r.ok) throw new Error(j.error && j.error.message || 'Upload failed'); location.href = '/#doc=' + j.document.id; }catch(e){ msg('Could not send the file: ' + e.message + ' (this button needs the Python server).', 'err'); } }; $('btnReport').onclick = report;
+$('btnReset').onclick = () => { if(!S.after || S.busy) return; S.cur = S.orig; S.after = null; S.uniTried = false; S.review = []; S.textCur = S.before.text; S.step = 3; render(); msg('All fixes undone. Showing the original file.'); };
+async function openFile(file){ if(!file || S.busy) return; if(!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)){ msg('Choose a PDF file.', 'err'); return; } loadPdf(new Uint8Array(await file.arrayBuffer()), file.name, ''); }
+$('file').onchange = e => { openFile(e.target.files[0]); e.target.value = ''; };
+let dragDepth = 0;
+addEventListener('dragenter', e => { if(e.dataTransfer && [...e.dataTransfer.types].includes('Files')){ dragDepth++; $('drop').hidden = false; } });
+addEventListener('dragleave', () => { if(--dragDepth <= 0){ dragDepth = 0; $('drop').hidden = true; } });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; $('drop').hidden = true; openFile(e.dataTransfer.files[0]); });
+
+(async () => {
+  try{ S.downloads = await window.claude?.use?.('downloads') || null; }catch(e){}
+  try{ S.ai = await window.claude?.use?.('sample') || null; }catch(e){}
+  if(S.before) render();
+})();
+(async () => {
+  const q = new URLSearchParams(location.search), doc = q.get('doc'), ver = q.get('version') || 'latest';
+  if (doc && /^[0-9a-f]{32}$/.test(doc) && /^(v\d{1,3}|latest)$/.test(ver)) {
+    try { msg('Loading the document from the validator…', 'work'); const r = await fetch('/api/documents/' + doc + '/download?version=' + ver); if(!r.ok) throw new Error('not found'); const nm = (r.headers.get('Content-Disposition')||'').match(/filename="?([^";]+)/); await loadPdf(new Uint8Array(await r.arrayBuffer()), nm ? nm[1] : 'document.pdf', ''); return; }
+    catch(e){ msg('The document could not be loaded from the validator. Showing a sample instead.', 'err'); }
+  }
+  loadSample('worksheet');
+})();
+</script>
+
+</body>
+</html>
